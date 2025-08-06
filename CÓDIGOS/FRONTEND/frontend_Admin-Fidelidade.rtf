@@ -1,0 +1,184 @@
+// FRONTEND/Admin-Fidelidade
+import wixWindow from 'wix-window';
+import {
+    getDadosUsuariosFidelidade,
+    addPontoManual,
+    removePontoManual,
+    listarRecompensas,
+    salvarRecompensa,
+    excluirRecompensa
+} from 'backend/adminFidelidade.jsw';
+
+let mesAnoGlobal = "";
+let recompensaEditando = null;
+
+$w.onReady(async () => {
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth() + 1;
+    const anoAtual = hoje.getFullYear();
+    mesAnoGlobal = `${mesAtual.toString().padStart(2, '0')}/${anoAtual}`;
+
+    await atualizarRepeaterUsuarios();
+    await atualizarRepeaterRecompensas();
+
+    // Novo cadastro
+    $w("#btnNovaRecompensa").onClick(() => {
+        recompensaEditando = null;
+        limparCamposFormulario();
+        $w("#boxEdicaoRecompensa").expand();
+    });
+
+    // Botão cancelar
+    $w("#btnCancelarRecompensa").onClick(() => {
+        $w("#boxEdicaoRecompensa").collapse();
+    });
+
+    // Botão salvar
+    $w("#btnSalvarRecompensa").onClick(async () => {
+        const novaRecompensa = {
+            userId: $w("#inputTitulo").value,
+            descricao: $w("#inputDescricao").value,
+            pontosNecessarios: Number($w("#inputPontos").value),
+            codigoDesconto: $w("#inputCupom").value,
+            tipoResgate: $w("#dropdownTipoResgate").value,
+            ativo: $w("#checkboxAtivo").checked
+        };
+
+        if (recompensaEditando) {
+            novaRecompensa._id = recompensaEditando._id;
+        }
+
+        await salvarRecompensa(novaRecompensa);
+        await atualizarRepeaterRecompensas();
+        $w("#boxEdicaoRecompensa").collapse();
+    });
+});
+
+/* ---------- Repeater de Usuários com ajuste manual de pontos ---------- */
+async function atualizarRepeaterUsuarios() {
+    const usuarios = await getDadosUsuariosFidelidade(mesAnoGlobal);
+    $w('#repeaterUsuarios').data = usuarios;
+
+    $w('#repeaterUsuarios').onItemReady(($item, itemData) => {
+        $item('#textNome').text = itemData.nome;
+        $item('#textEmail').text = itemData.email;
+        $item('#imgPerfil').src = itemData.foto;
+        $item('#textComprasMes').text = String(itemData.comprasMes);
+        $item('#textPontosMes').text = String(itemData.pontosMes);
+        $item('#textTotalPontos').text = String(itemData.totalPontos);
+
+        $item('#btnAddPonto').onClick(async () => {
+            const quantidade = Number($item('#inputPontosManual').value || 1);
+            await addPontoManual(itemData.userId, itemData.mesAno, quantidade);
+            await atualizarRepeaterUsuarios();
+        });
+
+        $item('#btnRemovePonto').onClick(async () => {
+            const quantidade = Number($item('#inputPontosManual').value || 1);
+            await removePontoManual(itemData.userId, itemData.mesAno, quantidade);
+            await atualizarRepeaterUsuarios();
+        });
+    });
+}
+
+/* ---------- Repeater de Recompensas ---------- */
+async function atualizarRepeaterRecompensas() {
+    const recompensas = await listarRecompensas();
+    $w("#repeaterRecompensas").data = recompensas;
+
+    $w("#repeaterRecompensas").onItemReady(($item, itemData) => {
+        $item("#textTituloRecompensa").text = itemData.userId;
+        $item("#textDescricaoRecompensa").text = itemData.descricao;
+        $item("#textPontosNecessariosRecompensa").text = String(itemData.pontosNecessarios);
+        $item("#textCodigoDescontoRecompensa").text = itemData.codigoDesconto || "—";
+        $item("#tipoResgate").text = itemData.tipoResgate;
+
+
+        $item("#btnEditarRecompensa").onClick(() => {
+            recompensaEditando = itemData;
+            $w("#inputTitulo").value = itemData.userId;
+            $w("#inputDescricao").value = itemData.descricao;
+            $w("#inputPontos").value = String(itemData.pontosNecessarios);
+            $w("#inputCupom").value = itemData.codigoDesconto || "";
+            $w("#dropdownTipoResgate").value = itemData.tipoResgate || "cupom";
+            $w("#checkboxAtivo").checked = !!itemData.ativo;
+
+            $w("#boxEdicaoRecompensa").expand();
+        });
+
+        $item("#btnExcluirRecompensa").onClick(async () => {
+            const resposta = await wixWindow.openLightbox("Confirmação");
+            if (resposta === "sim") {
+                await excluirRecompensa(itemData._id);
+                await atualizarRepeaterRecompensas();
+            }
+        });
+    });
+}
+
+/* ---------- Limpa os campos do formulário ---------- */
+function limparCamposFormulario() {
+    $w("#inputTitulo").value = "";
+    $w("#inputDescricao").value = "";
+    $w("#inputPontos").value = "";
+    $w("#inputCupom").value = "";
+    $w("#dropdownTipoResgate").value = "cupom";
+    $w("#checkboxAtivo").checked = true;
+}
+
+// Preenche os dropdowns
+$w("#dropdownMes").options = [
+    { label: "01 - Janeiro", value: "01" },
+    { label: "02 - Fevereiro", value: "02" },
+    { label: "03 - Março", value: "03" },
+    { label: "04 - Abril", value: "04" },
+    { label: "05 - Maio", value: "05" },
+    { label: "06 - Junho", value: "06" },
+    { label: "07 - Julho", value: "07" },
+    { label: "08 - Agosto", value: "08" },
+    { label: "09 - Setembro", value: "09" },
+    { label: "10 - Outubro", value: "10" },
+    { label: "11 - Novembro", value: "11" },
+    { label: "12 - Dezembro", value: "12" }
+];
+
+const anoAtual = new Date().getFullYear();
+$w("#dropdownAno").options = [
+    { label: String(anoAtual - 1), value: String(anoAtual - 1) },
+    { label: String(anoAtual), value: String(anoAtual) },
+    { label: String(anoAtual + 1), value: String(anoAtual + 1) }
+];
+
+// Define valor inicial com mês/ano atual
+$w("#dropdownMes").value = mesAnoGlobal.split("/")[0];
+$w("#dropdownAno").value = mesAnoGlobal.split("/")[1];
+
+// Botão de filtro
+$w("#btnFiltrarMesAno").onClick(async () => {
+    const mes = $w("#dropdownMes").value;
+    const ano = $w("#dropdownAno").value;
+
+    if (mes === "todos") {
+        mesAnoGlobal = "todos"; // valor especial para exibir todos
+    } else {
+        mesAnoGlobal = `${mes}/${ano}`;
+    }
+
+    await atualizarRepeaterUsuarios();
+});
+
+$w("#dropdownMes").options = [
+    { label: "Todos", value: "todos" },
+    { label: "01 - Janeiro", value: "01" },
+    { label: "02 - Fevereiro", value: "02" },
+    { label: "03 - Março", value: "03" },
+    { label: "04 - Abril", value: "04" },
+    { label: "05 - Maio", value: "05" },
+    { label: "06 - Junho", value: "06" },
+    { label: "07 - Julho", value: "07" },
+    { label: "08 - Agosto", value: "08" },
+    { label: "09 - Setembro", value: "09" },
+    { label: "10 - Outubro", value: "10" },
+    { label: "11 - Novembro", value: "11" },
+    { label: "12 - Dezembro", value: "12" }
+];

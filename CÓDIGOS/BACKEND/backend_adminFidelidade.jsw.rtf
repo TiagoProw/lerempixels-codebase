@@ -1,0 +1,105 @@
+// backend/adminFidelidade.jsw
+import wixData from 'wix-data';
+
+/* ---------- LISTAR MEMBROS ---------- */
+export async function getDadosUsuariosFidelidade(mesAno) {
+    const { items: progresso } = await wixData.query('ProgressoUsuarios')
+        .limit(1000)
+        .find();
+
+    // Buscar todos os membros registrados no site
+    const { items: members } = await wixData.query('Members/PrivateMembersData')
+        .limit(1000)
+        .find();
+
+    const usuarios = await Promise.all(
+        members.map(async (member) => {
+            const userId = member._id;
+            const itemProgresso = progresso.find(p => p.userId === userId && (mesAno === "todos" || p.mesAno === mesAno));
+
+            const nome = `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Sem nome';
+            const email = member.email || 'Sem e-mail';
+            const foto = member.picture || 'https://static.wixstatic.com/media/ba53bb_e27872e2c3b2401b872cd1ee7e38a0de~mv2.png';
+
+            const totalPontos = await getPontosTotais(userId);
+
+            return {
+                _id: userId,
+                userId,
+                mesAno: mesAno === "todos" ? "" : (itemProgresso?.mesAno || mesAno),
+                nome,
+                email,
+                foto,
+                comprasMes: itemProgresso?.totalCompras || 0,
+                pontosMes: itemProgresso?.pontosGanhos || 0,
+                totalPontos
+            };
+        })
+    );
+
+    return usuarios;
+}
+
+/* ---------- TOTAL DE PONTOS DO USUÁRIO ---------- */
+async function getPontosTotais(userId) {
+    const { items } = await wixData.query('ProgressoUsuarios')
+        .eq('userId', userId)
+        .find();
+    return items.reduce((tot, it) => tot + (it.pontosGanhos || 0), 0);
+}
+
+/* ---------- AJUSTE MANUAL ---------- */
+export async function addPontoManual(userId, mesAno, quantidade) {
+    const { items } = await wixData.query('ProgressoUsuarios')
+        .eq('userId', userId)
+        .eq('mesAno', mesAno)
+        .find();
+
+    if (items.length) {
+        const item = items[0];
+        item.pontosGanhos += quantidade;
+        return wixData.update('ProgressoUsuarios', item);
+    } else {
+        const novo = {
+            userId,
+            mesAno,
+            pontosGanhos: quantidade,
+            totalCompras: 0,
+            dataRegistro: new Date()
+        };
+        return wixData.insert('ProgressoUsuarios', novo);
+    }
+}
+
+export async function removePontoManual(userId, mesAno, quantidade) {
+    const { items } = await wixData.query('ProgressoUsuarios')
+        .eq('userId', userId)
+        .eq('mesAno', mesAno)
+        .find();
+
+    if (items.length) {
+        const item = items[0];
+        item.pontosGanhos = Math.max(0, item.pontosGanhos - quantidade);
+        return wixData.update('ProgressoUsuarios', item);
+    }
+}
+
+/* ---------- RECOMPENSAS ---------- */
+export async function listarRecompensas() {
+    const { items } = await wixData.query("RecompensasDisponiveis")
+        .limit(1000)
+        .find();
+    return items;
+}
+
+export async function salvarRecompensa(dados) {
+    if (dados._id) {
+        return wixData.update("RecompensasDisponiveis", dados);
+    } else {
+        return wixData.insert("RecompensasDisponiveis", dados);
+    }
+}
+
+export async function excluirRecompensa(id) {
+    return wixData.remove("RecompensasDisponiveis", id);
+}

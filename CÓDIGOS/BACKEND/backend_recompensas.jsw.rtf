@@ -1,0 +1,159 @@
+// backend/recompensas.jsw
+import wixData from 'wix-data';
+import wixUsersBackend from 'wix-users-backend';
+import { elevate } from 'wix-auth';
+import { currentMember } from 'wix-members-backend';
+
+// ✅ Simula uma compra e atualiza o progresso do mês para o usuário
+export async function simularCompraTeste(userId) {
+  const dataAtual = new Date();
+  const mes = String(dataAtual.getMonth() + 1).padStart(2, "0");
+  const ano = dataAtual.getFullYear();
+  const mesAno = `${mes}/${ano}`;
+
+  //-------------------CONSOLE.LOG----------------------------------------
+  console.log("Simulando compra para:", userId, "no mês:", mesAno);
+  //-------------------CONSOLE.LOG----------------------------------------
+
+  const resultado = await wixData.query("ProgressoUsuarios")
+    .eq("userId", userId)
+    .eq("mesAno", mesAno)
+    .find();
+
+  if (resultado.items.length > 0) {
+    const registro = resultado.items[0];
+    const novasCompras = (registro.totalCompras || 0) + 1;
+    let novosPontos = registro.pontosGanhos || 0;
+
+    if (novasCompras === 2) {
+      novosPontos += 1;
+    }
+
+    const itemAtualizado = {
+      _id: registro._id,
+      totalCompras: novasCompras,
+      pontosGanhos: novosPontos,
+      dataRegistro: new Date()
+    };
+
+    await wixData.update("ProgressoUsuarios", itemAtualizado);
+
+    //-------------------CONSOLE.LOG----------------------------------------
+    console.log("Registro atualizado com sucesso:", itemAtualizado);
+    //-------------------CONSOLE.LOG----------------------------------------
+
+  } else {
+    const novoRegistro = {
+      userId: userId,
+      mesAno: mesAno,
+      totalCompras: 1,
+      pontosGanhos: 0,
+      dataRegistro: new Date()
+    };
+
+    await wixData.insert("ProgressoUsuarios", novoRegistro);
+
+    //-------------------CONSOLE.LOG----------------------------------------
+    console.log("Novo registro criado:", novoRegistro);
+    //-------------------CONSOLE.LOG----------------------------------------
+
+  }
+}
+
+// ---------------------------------------------------
+// NOVAS FUNÇÕES PARA CUPONS POR PONTOS
+// ---------------------------------------------------
+
+// Taxa de conversão: R$1 = 20 pontos
+const TAXA_CONVERSAO = 20;
+
+export async function obterQuantidadesDeCuponsDisponiveis() {
+  const resultados = await wixData.query('Import946')
+    .eq('jaUsado', false)
+    .limit(1000)
+    .find();
+
+  const contagem = {};
+
+  for (let i = 1; i <= 10; i++) {
+    contagem[i] = 0;
+  }
+
+  resultados.items.forEach((cupom) => {
+    const valor = cupom.valorReais;
+
+    if (contagem[valor] !== undefined) {
+      contagem[valor]++;
+    }
+  });
+
+  return contagem;
+}
+
+export async function resgatarCupom(valorReais) {
+  if (!valorReais || typeof valorReais !== 'number') {
+    throw new Error('Valor inválido.');
+  }
+
+  const user = await currentMember.getMember();
+  const userId = user._id;
+
+  // Buscar pontos do usuário
+  const resultado = await wixData.query('PontosFidelidade')
+    .eq('userId', userId)
+    .find();
+
+  const pontosAtuais = resultado.items.length > 0 ? resultado.items[0].pontos : 0;
+  const pontosNecessarios = valorReais * TAXA_CONVERSAO;
+
+  if (pontosAtuais < pontosNecessarios) {
+    throw new Error('Você não tem pontos suficientes.');
+  }
+
+  // Buscar cupom disponível
+  const cupons = await wixData.query('Import946')
+    .eq('valorReais', valorReais)
+    .eq('jaUsado', false)
+    .limit(100)
+    .find();
+
+  if (cupons.items.length === 0) {
+    throw new Error('Cupom esgotado para esse valor.');
+  }
+
+  const cupomSorteado = cupons.items[Math.floor(Math.random() * cupons.items.length)];
+
+  // Marcar cupom como usado
+  const atualizacaoCupom = {
+    _id: cupomSorteado._id,
+    jaUsado: true,
+    dataUso: new Date(),
+    userId: userId
+  };
+  await wixData.update('Import946', atualizacaoCupom);
+
+  // Registrar uso
+  await wixData.insert('UsoDePontos', {
+    userId,
+    pontosUsados: pontosNecessarios,
+    valorDescontado: valorReais,
+    codigoCupom: cupomSorteado.codigo,
+    dataUso: new Date(),
+    pedidoId: '',
+    dataResgate: new Date()
+  });
+
+  // Atualizar saldo de pontos
+  if (resultado.items.length > 0) {
+    const docExistente = resultado.items[0];
+    await wixData.update('PontosFidelidade', {
+      _id: docExistente._id,
+      pontos: docExistente.pontos - pontosNecessarios
+    });
+  }
+
+  return {
+    codigo: cupomSorteado.codigo,
+    valorReais
+  };
+}

@@ -1,0 +1,29 @@
+// BACKEND/pontosFidelidade.jsw
+import wixUsersBackend from 'wix-users-backend';
+import wixData from 'wix-data';
+
+// Retorna o total de pontos acumulados do usuário
+export async function getTotalPontosDoUsuario() {
+    const user = wixUsersBackend.currentUser;
+    if (!user.loggedIn) return 0;
+
+    const userId = user.id;
+
+    const { items } = await wixData.query("ProgressoUsuarios")
+        .eq("userId", userId)
+        .find();
+
+    return items.reduce((total, item) => total + (item.pontosGanhos || 0), 0);
+}
+
+// Calcula quanto o usuário pode descontar com base nos pontos
+export async function calcularDescontoEmReais() {
+    const totalPontos = await getTotalPontosDoUsuario();
+    const pontosValidos = Math.floor(totalPontos / 20) * 20;
+    const descontoReais = pontosValidos / 20;
+
+    return {
+        pontosParaUsar: pontosValidos,
+        desconto: descontoReais
+    };
+}

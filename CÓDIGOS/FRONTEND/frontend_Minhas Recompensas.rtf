@@ -1,0 +1,166 @@
+// frontend/Minhas Recompensas
+import wixUsers from 'wix-users';
+import wixData from 'wix-data';
+import wixLocation from 'wix-location';
+import { obterQuantidadesDeCuponsDisponiveis, resgatarCupom } from 'backend/recompensas';
+
+let pontosUsuario = 0;
+let totalComprasUsuario = 0;
+
+$w.onReady(async function () {
+    const user = wixUsers.currentUser;
+    if (!user.loggedIn) return;
+
+    const userId = user.id;
+    const hoje = new Date();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const ano = hoje.getFullYear();
+    const mesAnoAtual = `${mes}/${ano}`;
+
+    // Buscar pontos e progresso do usuário
+    const { items: progresso } = await wixData.query("ProgressoUsuarios")
+        .eq("userId", userId)
+        .eq("mesAno", mesAnoAtual)
+        .limit(1)
+        .find();
+
+    if (progresso.length > 0) {
+        pontosUsuario = progresso[0].pontosGanhos || 0;
+        totalComprasUsuario = progresso[0].totalCompras || 0;
+    }
+
+    $w('#textPontosUsuario').text = `${pontosUsuario}`;
+
+    // Buscar recompensas
+    const { items: recompensas } = await wixData.query("RecompensasDisponiveis")
+        .eq("ativo", true)
+        .find();
+
+    $w("#repeaterRecompensas").data = recompensas;
+
+    $w("#repeaterRecompensas").onItemReady(($item, itemData) => {
+        const pontosNecessarios = itemData.pontosNecessarios || 0;
+        const tipoResgate = itemData.tipoResgate || "cupom";
+        const titulo = itemData.userId || "Sem título";
+        const descricao = itemData.descricao || "Sem descrição";
+
+        $item('#textTitulo').text = titulo;
+        $item('#textDescricao').text = descricao;
+        $item('#textCupom').collapse();
+        $item('#btnObterCupom').hide();
+        $item('#barraProgresso').hide();
+
+        // CUPOM — padrão
+        if (tipoResgate === "cupom") {
+            $item('#textPontosNecessarios').text = `${pontosNecessarios} Pixel Points`;
+            const podeResgatar = pontosUsuario >= pontosNecessarios;
+
+            $item('#btnObterCupom').label = podeResgatar ? "Obter Cupom" : "Pontos Insuficientes";
+            podeResgatar ? $item('#btnObterCupom').enable() : $item('#btnObterCupom').disable();
+            $item('#btnObterCupom').show();
+
+            $item('#btnObterCupom').onClick(() => {
+                if (podeResgatar) {
+                    $item('#textCupom').text = itemData.codigoDesconto || "Cupom não disponível";
+                    $item('#textCupom').expand();
+                    $item('#btnObterCupom').label = "Cupom Exibido";
+                    $item('#btnObterCupom').disable();
+                }
+            });
+        }
+
+        // PROGRESSO — baseado em compras ou pontos
+        else if (tipoResgate === "progresso") {
+            if (titulo.toLowerCase().includes("compra")) {
+                // Recompensa baseada em compras (ex: 2 compras no mês)
+                const comprasNecessarias = 2;
+                const progresso = Math.min(totalComprasUsuario / comprasNecessarias, 1);
+
+                $item('#textPontosNecessarios').text = `${totalComprasUsuario} de ${comprasNecessarias} compras` + (progresso >= 1 ? " ✔️" : "");
+                $item('#barraProgresso').value = progresso * 100;
+                $item('#barraProgresso').show();
+            } else if (pontosNecessarios > 0) {
+                // Recompensa baseada em pontos (ex: 200 Pixel Points)
+                const pontosMostrados = Math.min(pontosUsuario, pontosNecessarios);
+                $item('#textPontosNecessarios').text = `${pontosMostrados} de ${pontosNecessarios} Pixel Points` + (pontosUsuario >= pontosNecessarios ? " ✔️" : "");
+                $item('#barraProgresso').value = pontosMostrados / pontosNecessarios * 100;
+                $item('#barraProgresso').show();
+            } else {
+                // Missões com 0 pontos necessários (cumpridas automaticamente)
+                $item('#textPontosNecessarios').text = `Concluido ✔️`;
+            }
+        }
+
+        // EXTERNO — link externo no código do cupom
+        else if (tipoResgate === "externo" && itemData.codigoDesconto) {
+            $item('#textPontosNecessarios').text = `Clique para acessar`;
+            $item('#btnObterCupom').label = "Acessar";
+            $item('#btnObterCupom').enable();
+            $item('#btnObterCupom').onClick(() => {
+                wixLocation.to(itemData.codigoDesconto);
+            });
+            $item('#btnObterCupom').show();
+        }
+    });
+    // ---------------------------------------------------
+    // RECOMPENSA DE CUPONS POR PONTOS
+    // ---------------------------------------------------
+    $w('#btnCriarCupom').onClick(async () => {
+        $w('#caixaRepeaterCupom').expand();
+
+        const contagem = await obterQuantidadesDeCuponsDisponiveis();
+
+        const opcoes = Array.from({ length: 10 }, (_, i) => {
+            const valor = i + 1;
+            return {
+                _id: `cupom-${valor}`, // <- Adiciona o ID obrigatório
+                valorReais: valor,
+                pontosNecessarios: valor * 20,
+                resgatesDisponiveis: contagem[valor] || 0
+            };
+        });
+
+        $w('#repeaterCupom').data = opcoes;
+
+        $w('#repeaterCupom').onItemReady(($item, itemData) => {
+            const { valorReais, pontosNecessarios, resgatesDisponiveis } = itemData;
+
+            $item('#textValorCupom').text = `R$${valorReais}`;
+            $item('#textRestamCupom').text = `${resgatesDisponiveis}/10 resgates`;
+
+            const podeResgatar = pontosUsuario >= pontosNecessarios && resgatesDisponiveis > 0;
+
+            $item('#btnResgatarCupom').label = podeResgatar ? "Resgatar" : "Indisponível";
+            podeResgatar ? $item('#btnResgatarCupom').enable() : $item('#btnResgatarCupom').disable();
+
+            $item('#btnResgatarCupom').onClick(async () => {
+                $item('#btnResgatarCupom').label = "Processando...";
+                $item('#btnResgatarCupom').disable();
+
+                try {
+                    const resultado = await resgatarCupom(valorReais);
+                    $item('#btnResgatarCupom').label = `Cupom: ${resultado.codigo}`;
+                } catch (erro) {
+                    console.error(erro);
+                    $item('#btnResgatarCupom').label = "Erro ao resgatar";
+                    setTimeout(() => {
+                        $item('#btnResgatarCupom').label = "Tentar novamente";
+                        $item('#btnResgatarCupom').enable();
+                    }, 3000);
+                }
+            });
+
+            console.log("Repetidor carregando:", {
+                valor: itemData.valorReais,
+                pontosNecessarios: itemData.pontosNecessarios,
+                resgatesDisponiveis: itemData.resgatesDisponiveis,
+                pontosUsuario: pontosUsuario
+            });
+        });
+    });
+});
+
+$w('#btnFecharCaixaCupom').onClick((event) => {
+    $w('#caixaRepeaterCupom').collapse();
+
+})
