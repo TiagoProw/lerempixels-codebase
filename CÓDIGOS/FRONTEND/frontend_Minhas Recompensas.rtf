@@ -149,7 +149,6 @@ $w.onReady(async function () {
                     }, 3000);
                 }
             });
-
             console.log("Repetidor carregando:", {
                 valor: itemData.valorReais,
                 pontosNecessarios: itemData.pontosNecessarios,
@@ -158,7 +157,7 @@ $w.onReady(async function () {
             });
         });
     });
-});
+})
 
 $w('#btnFecharCaixaCupom').onClick((event) => {
     $w('#caixaRepeaterCupom').collapse();

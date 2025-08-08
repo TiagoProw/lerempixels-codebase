@@ -99,7 +99,7 @@ export async function resgatarCupom(valorReais) {
   const userId = user._id;
 
   // Buscar pontos do usuário
-  const resultado = await wixData.query('PontosFidelidade')
+  const resultado = await wixData.query('ProgressoUsuarios')
     .eq('userId', userId)
     .find();
 
@@ -146,7 +146,7 @@ export async function resgatarCupom(valorReais) {
   // Atualizar saldo de pontos
   if (resultado.items.length > 0) {
     const docExistente = resultado.items[0];
-    await wixData.update('PontosFidelidade', {
+    await wixData.update('ProgressoUsuarios', {
       _id: docExistente._id,
       pontos: docExistente.pontos - pontosNecessarios
     });
