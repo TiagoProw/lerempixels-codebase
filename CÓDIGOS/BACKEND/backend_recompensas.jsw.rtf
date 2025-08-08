@@ -68,7 +68,6 @@ export async function simularCompraTeste(userId) {
 const TAXA_CONVERSAO = 20;
 
 // Retorna a contagem de cupons disponíveis por valor
-// Retorna a contagem de cupons disponíveis por valor
 export async function obterQuantidadesDeCuponsDisponiveis() {
   const resultados = await wixData.query('Import946')
     .limit(1000)
@@ -95,73 +94,65 @@ export async function resgatarCupom(valorReais) {
 
   const user = await currentMember.getMember();
   const userId = user._id;
-  const pontosNecessarios = valorReais * TAXA_CONVERSAO;
 
-  // Buscar pontos
+  // Buscar pontos do usuário
   const resultado = await wixData.query('ProgressoUsuarios')
     .eq('userId', userId)
+    .descending('dataRegistro')
     .limit(1)
     .find();
 
-  if (resultado.items.length === 0 || (resultado.items[0].pontosGanhos || 0) < pontosNecessarios) {
+  const pontosAtuais = resultado.items.length > 0 ? resultado.items[0].pontosGanhos : 0;
+  const pontosNecessarios = valorReais * TAXA_CONVERSAO;
+
+  if (pontosAtuais < pontosNecessarios) {
     throw new Error('Você não tem pontos suficientes.');
   }
 
-  // Verificar se o usuário já pegou 10 cupons desse valor
-  const usados = await wixData.query('UsoDePontos')
+  // Verificar se já resgatou esse valor 10 vezes
+  const { totalCount } = await wixData.query('UsoDePontos')
     .eq('userId', userId)
     .eq('valorDescontado', valorReais)
-    .find();
+    .count();
 
-  if (usados.items.length >= 10) {
-    throw new Error('Você já resgatou o máximo de cupons para esse valor.');
+  if (totalCount >= 10) {
+    throw new Error('Você já resgatou esse valor de cupom 10 vezes.');
   }
 
-  // Pega cupom disponível
-  const cupons = await wixData.query('Import946')
+  // Buscar um cupom aleatório do valor desejado
+  const cupons = await wixData.query('CuponsDisponiveis')
     .eq('valorReais', valorReais)
     .limit(100)
     .find();
 
   if (cupons.items.length === 0) {
-    throw new Error('Cupom esgotado para esse valor.');
+    throw new Error('Não há cupons disponíveis para esse valor.');
   }
 
-  const cupomSorteado = cupons.items[Math.floor(Math.random() * cupons.items.length)];
+  const cupomSelecionado = cupons.items[Math.floor(Math.random() * cupons.items.length)];
 
-  // Marcar cupom como usado
-  await wixData.update('Import946', {
-    _id: cupomSorteado._id,
-  });
-
-  // Registrar uso
+  // Registrar o uso
   await wixData.insert('UsoDePontos', {
     userId,
     pontosUsados: pontosNecessarios,
     valorDescontado: valorReais,
-    codigoCupom: cupomSorteado.codigo,
+    codigoCupom: cupomSelecionado.codigo,
     dataUso: new Date(),
     pedidoId: '',
     dataResgate: new Date()
   });
 
-  // Atualizar saldo de pontos
-  const doc = resultado.items[0];
-  await wixData.update('ProgressoUsuarios', {
-    _id: doc._id,
-    pontosGanhos: doc.pontosGanhos - pontosNecessarios
-  });
+  // Atualizar os pontos do usuário
+  if (resultado.items.length > 0) {
+    const docExistente = resultado.items[0];
+    await wixData.update('ProgressoUsuarios', {
+      _id: docExistente._id,
+      pontosGanhos: docExistente.pontosGanhos - pontosNecessarios
+    });
+  }
 
   return {
-    codigo: cupomSorteado.codigo,
+    codigo: cupomSelecionado.codigo,
     valorReais
   };
-}
-
-export async function testarLeituraImport946() {
-  const resultado = await wixData.query('Import946')
-    .limit(5)
-    .find();
-  console.log("TESTE - Itens Import946:", resultado.items);
-  return resultado.items;
 }
