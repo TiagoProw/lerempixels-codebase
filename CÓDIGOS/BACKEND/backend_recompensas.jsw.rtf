@@ -132,8 +132,6 @@ export async function resgatarCupom(valorReais) {
   // Marcar cupom como usado
   await wixData.update('Import946', {
     _id: cupomSorteado._id,
-    dataUso: new Date(),
-    userId: userId
   });
 
   // Registrar uso
