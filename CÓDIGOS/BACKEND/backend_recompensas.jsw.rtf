@@ -120,7 +120,7 @@ export async function resgatarCupom(valorReais) {
   }
 
   // Buscar um cupom aleatório do valor desejado
-  const cupons = await wixData.query('CuponsDisponiveis')
+  const cupons = await wixData.query('Import946')
     .eq('valorReais', valorReais)
     .limit(100)
     .find();
