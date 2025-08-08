@@ -110,12 +110,12 @@ export async function resgatarCupom(valorReais) {
   }
 
   // Verificar se já resgatou esse valor 10 vezes
-  const { totalCount } = await wixData.query('UsoDePontos')
+  const totalResgates = await wixData.query("UsoDePontos")
     .eq('userId', userId)
     .eq('valorDescontado', valorReais)
     .count();
 
-  if (totalCount >= 10) {
+  if (totalResgates >= 10) {
     throw new Error('Você já resgatou esse valor de cupom 10 vezes.');
   }
 
