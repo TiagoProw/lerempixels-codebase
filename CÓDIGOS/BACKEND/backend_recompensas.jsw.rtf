@@ -69,23 +69,31 @@ const TAXA_CONVERSAO = 20;
 
 // Retorna a contagem de cupons disponíveis por valor
 export async function obterQuantidadesDeCuponsDisponiveis() {
-  const resultados = await wixData.query('Import946')
-    .limit(1000)
-    .find();
+  const user = await currentMember.getMember();
+  const userId = user._id;
+
+  // Busca quantos cupons o usuário já usou por valor
+  const usados = await wixData.aggregate('UsoDePontos')
+    .filter(wixData.filter().eq('userId', userId))
+    .group('valorDescontado')
+    .count()
+    .run();
 
   const contagem = {};
-  for (let i = 1; i <= 10; i++) contagem[i] = 0;
+  for (let i = 1; i <= 10; i++) {
+    contagem[i] = 10; // cada usuário pode usar até 10 cupons de cada valor
+  }
 
-  resultados.items.forEach(cupom => {
-    const valor = Number(cupom.valorReais);
-    if (!isNaN(valor) && contagem[valor] !== undefined) {
-      contagem[valor]++;
+  usados.items.forEach(item => {
+    const valor = item.valorDescontado;
+    const usados = item.count;
+    if (contagem[valor] !== undefined) {
+      contagem[valor] = Math.max(0, 10 - usados);
     }
   });
 
   return contagem;
 }
-
 // Novo controle: usuário pode pegar até 10 cupons por valor
 export async function resgatarCupom(valorReais) {
   if (!valorReais || typeof valorReais !== 'number') {
