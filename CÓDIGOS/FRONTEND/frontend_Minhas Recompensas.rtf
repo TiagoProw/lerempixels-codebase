@@ -11,25 +11,48 @@ $w.onReady(async function () {
     const user = wixUsers.currentUser;
     if (!user.loggedIn) return;
 
-    const userId = user.id;
-    const hoje = new Date();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const ano = hoje.getFullYear();
-    const mesAnoAtual = `${mes}/${ano}`;
+    async function atualizarPontosUsuario() {
+        const userId = user.id;
+        const hoje = new Date();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const ano = hoje.getFullYear();
+        const mesAnoAtual = `${mes}/${ano}`;
 
-    // Buscar pontos e progresso do usuário
-    const { items: progresso } = await wixData.query("ProgressoUsuarios")
-        .eq("userId", userId)
-        .eq("mesAno", mesAnoAtual)
-        .limit(1)
-        .find();
+        // Buscar pontos e progresso do usuário
+        const { items: progresso } = await wixData.query("ProgressoUsuarios")
+            .eq("userId", userId)
+            .eq("mesAno", mesAnoAtual)
+            .limit(1)
+            .find();
 
-    if (progresso.length > 0) {
-        pontosUsuario = progresso[0].pontosGanhos || 0;
-        totalComprasUsuario = progresso[0].totalCompras || 0;
+        if (progresso.length > 0) {
+            pontosUsuario = progresso[0].pontosGanhos || 0;
+            totalComprasUsuario = progresso[0].totalCompras || 0;
+        } else {
+            pontosUsuario = 0;
+            totalComprasUsuario = 0;
+        }
+        $w('#textPontosUsuario').text = `${pontosUsuario}`;
     }
 
-    $w('#textPontosUsuario').text = `${pontosUsuario}`;
+    async function atualizarRepeaterCupons() {
+        const contagem = await obterQuantidadesDeCuponsDisponiveis();
+
+        const opcoes = Array.from({ length: 10 }, (_, i) => {
+            const valor = i + 1;
+            return {
+                _id: `cupom-${valor}`, // ID obrigatório
+                valorReais: valor,
+                pontosNecessarios: valor * 20,
+                resgatesDisponiveis: contagem[valor] || 0
+            };
+        });
+
+        $w('#repeaterCupom').data = opcoes;
+    }
+
+    // Carregar dados iniciais
+    await atualizarPontosUsuario();
 
     // Buscar recompensas
     const { items: recompensas } = await wixData.query("RecompensasDisponiveis")
@@ -108,6 +131,8 @@ $w.onReady(async function () {
     $w('#btnCriarCupom').onClick(async () => {
         $w('#caixaRepeaterCupom').expand();
 
+        await atualizarRepeaterCupons();
+
         const contagem = await obterQuantidadesDeCuponsDisponiveis();
 
         const opcoes = Array.from({ length: 10 }, (_, i) => {
@@ -139,6 +164,11 @@ $w.onReady(async function () {
 
                 try {
                     const resultado = await resgatarCupom(valorReais);
+                    
+                    // Atualiza os pontos e o repeater logo após resgatar
+                    await atualizarPontosUsuario();
+                    await atualizarRepeaterCupons();
+
                     $item('#btnResgatarCupom').label = `Cupom: ${resultado.codigo}`;
                 } catch (erro) {
                     console.error(erro);
