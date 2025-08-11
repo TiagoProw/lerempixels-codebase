@@ -1,8 +1,10 @@
 // backend/recompensas.jsw
 import wixData from 'wix-data';
-import wixUsersBackend from 'wix-users-backend';
-import { elevate } from 'wix-auth';
 import { currentMember } from 'wix-members-backend';
+
+const TAXA_CONVERSAO = 20;
+const LIMITE_POR_VALOR = 10;
+const MAX_QUERY_LIMIT = 1000;
 
 // ✅ Simula uma compra e atualiza o progresso do mês para o usuário
 export async function simularCompraTeste(userId) {
@@ -64,103 +66,96 @@ export async function simularCompraTeste(userId) {
 // NOVAS FUNÇÕES PARA CUPONS POR PONTOS
 // ---------------------------------------------------
 
-// Taxa de conversão: R$1 = 20 pontos
-const TAXA_CONVERSAO = 20;
-
 // Retorna a contagem de cupons disponíveis por valor
-export async function obterQuantidadesDeCuponsDisponiveis() {
-  const user = await currentMember.getMember();
-  const userId = user._id;
+async function getCurrentUserId() {
+  const member = await currentMember.getMember();
+  if (!member || !member._id) throw new Error('Usuário não autenticado.');
+  return member._id;
+}
 
-  // Busca quantos cupons o usuário já usou por valor
-  const usados = await wixData.aggregate('UsoDePontos')
-    .filter(wixData.filter().eq('userId', userId))
-    .group('valorDescontado')
-    .count()
-    .run();
+export async function obterQuantidadesDeCuponsDisponiveis() {
+  const userId = await getCurrentUserId();
+  const usadosRes = await wixData.query('UsoDePontos')
+    .eq('userId', userId)
+    .limit(MAX_QUERY_LIMIT)
+    .find();
 
   const contagem = {};
-  for (let i = 1; i <= 10; i++) {
-    contagem[i] = 10; // cada usuário pode usar até 10 cupons de cada valor
-  }
+  for (let i = 1; i <= 10; i++) contagem[i] = LIMITE_POR_VALOR;
 
-  usados.items.forEach(item => {
-    const valor = item.valorDescontado;
-    const usados = item.count;
-    if (contagem[valor] !== undefined) {
-      contagem[valor] = Math.max(0, 10 - usados);
-    }
+  usadosRes.items.forEach(item => {
+    const v = Number(item.valorDescontado);
+    if (!isNaN(v) && contagem[v] !== undefined) contagem[v] = Math.max(0, contagem[v] - 1);
   });
 
   return contagem;
 }
+
 // Novo controle: usuário pode pegar até 10 cupons por valor
 export async function resgatarCupom(valorReais) {
-  if (!valorReais || typeof valorReais !== 'number') {
+  if (typeof valorReais !== 'number' || !Number.isInteger(valorReais) || valorReais < 1 || valorReais > 10) {
     throw new Error('Valor inválido.');
   }
 
-  const user = await currentMember.getMember();
-  const userId = user._id;
+  const userId = await getCurrentUserId();
 
-  // Buscar pontos do usuário
-  const resultado = await wixData.query('ProgressoUsuarios')
+  const hoje = new Date();
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const ano = hoje.getFullYear();
+  const mesAno = `${mes}/${ano}`;
+
+  const progressoRes = await wixData.query('ProgressoUsuarios')
     .eq('userId', userId)
-    .descending('dataRegistro')
+    .eq('mesAno', mesAno)
     .limit(1)
     .find();
 
-  const pontosAtuais = resultado.items.length > 0 ? resultado.items[0].pontosGanhos : 0;
+  if (progressoRes.items.length === 0) throw new Error('Registro de pontos não encontrado.');
+
+  const progressoDoc = progressoRes.items[0];
+  const pontosAtuais = Number(progressoDoc.pontosGanhos) || 0;
   const pontosNecessarios = valorReais * TAXA_CONVERSAO;
 
-  if (pontosAtuais < pontosNecessarios) {
-    throw new Error('Você não tem pontos suficientes.');
-  }
+  if (pontosAtuais < pontosNecessarios) throw new Error('Você não tem pontos suficientes.');
 
-  // Verificar se já resgatou esse valor 10 vezes
-  const totalResgates = await wixData.query("UsoDePontos")
+  const usadosCount = await wixData.query('UsoDePontos')
     .eq('userId', userId)
     .eq('valorDescontado', valorReais)
     .count();
 
-  if (totalResgates >= 10) {
-    throw new Error('Você já resgatou esse valor de cupom 10 vezes.');
-  }
+  if (usadosCount >= LIMITE_POR_VALOR) throw new Error(`Você já resgatou ${LIMITE_POR_VALOR} cupons de R$${valorReais}.`);
 
-  // Buscar um cupom aleatório do valor desejado
-  const cupons = await wixData.query('Import946')
+  const cuponsRes = await wixData.query('Import946')
     .eq('valorReais', valorReais)
-    .limit(100)
+    .limit(MAX_QUERY_LIMIT)
     .find();
 
-  if (cupons.items.length === 0) {
-    throw new Error('Não há cupons disponíveis para esse valor.');
-  }
+  if (!cuponsRes.items || cuponsRes.items.length === 0) throw new Error('Não há cupons disponíveis para esse valor.');
 
-  const cupomSelecionado = cupons.items[Math.floor(Math.random() * cupons.items.length)];
+  const cupomSelecionado = cuponsRes.items[Math.floor(Math.random() * cuponsRes.items.length)];
 
-  // Registrar o uso
-  await wixData.insert('UsoDePontos', {
+  const uso = {
     userId,
     pontosUsados: pontosNecessarios,
     valorDescontado: valorReais,
-    codigoCupom: cupomSelecionado.codigo,
+    codigoCupom: cupomSelecionado.codigo || '',
     dataUso: new Date(),
     pedidoId: '',
     dataResgate: new Date()
+  };
+
+  await wixData.insert('UsoDePontos', uso);
+
+  const novoPontos = pontosAtuais - pontosNecessarios;
+  await wixData.update('ProgressoUsuarios', {
+    _id: progressoDoc._id,
+    pontosGanhos: novoPontos
   });
 
-  // Atualizar os pontos do usuário
-  if (resultado.items.length > 0) {
-    const docExistente = resultado.items[0];
-    await wixData.update('ProgressoUsuarios', {
-      _id: docExistente._id,
-      pontosGanhos: docExistente.pontosGanhos - pontosNecessarios
-    });
-  }
+  return { codigo: cupomSelecionado.codigo, valorReais };
+}
 
-  return {
-    codigo: cupomSelecionado.codigo,
-    valorReais
-  };
+export async function testarLeituraImport946() {
+  const resultado = await wixData.query('Import946').limit(10).find();
+  return resultado.items;
 }
