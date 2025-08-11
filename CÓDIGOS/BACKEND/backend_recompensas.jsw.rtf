@@ -105,7 +105,7 @@ export async function resgatarCupom(valorReais) {
   const mesAno = `${mes}/${ano}`;
 
   const progressoRes = await wixData.query('ProgressoUsuarios')
-    .eq('userId', userId)
+    .eq("userId", userId)
     .eq('mesAno', mesAno)
     .limit(1)
     .find();
@@ -147,9 +147,9 @@ export async function resgatarCupom(valorReais) {
   await wixData.insert('UsoDePontos', uso);
 
   const novoPontos = pontosAtuais - pontosNecessarios;
-  await wixData.update('ProgressoUsuarios', {
-    _id: progressoDoc._id,
-    pontosGanhos: novoPontos
+  await wixData.update("ProgressoUsuarios", {
+    _id: registroUsuario._id,
+    pontosGanhos: (registroUsuario.pontosGanhos || 0) - pontosNecessarios
   });
 
   return { codigo: cupomSelecionado.codigo, valorReais };
