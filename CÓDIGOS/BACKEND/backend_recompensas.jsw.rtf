@@ -148,8 +148,8 @@ export async function resgatarCupom(valorReais) {
 
   const novoPontos = pontosAtuais - pontosNecessarios;
   await wixData.update("ProgressoUsuarios", {
-    _id: registroUsuario._id,
-    pontosGanhos: (registroUsuario.pontosGanhos || 0) - pontosNecessarios
+    _id: progressoDoc._id,
+    pontosGanhos: novoPontos
   });
 
   return { codigo: cupomSelecionado.codigo, valorReais };
