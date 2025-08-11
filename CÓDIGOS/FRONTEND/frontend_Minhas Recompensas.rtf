@@ -209,9 +209,17 @@ $w.onReady(async function () {
             codigoCupom: item.codigoCupom
         }));
 
-        $w('#repeaterMeusCupons').data = cupons;
+        if (cupons.length === 0) {
+            // Oculta a caixa e mostra mensagem
+            $w('#repeaterMeusCupons').collapse();
+            $w('#textSemCupons').show(); // crie esse texto no editor, inicialmente escondido
+        } else {
+            // Mostra a caixa e esconde mensagem
+            $w('#repeaterMeusCupons').expand();
+            $w('#textSemCupons').hide();
+            $w('#repeaterMeusCupons').data = cupons;
+        }
     }
-
     // No onItemReady do repeaterMeusCupons, configurar os textos e botão copiar
     $w('#repeaterMeusCupons').onItemReady(($item, itemData) => {
         $item('#textValorCupomUsado').text = `R$${itemData.valorDescontado}`;
