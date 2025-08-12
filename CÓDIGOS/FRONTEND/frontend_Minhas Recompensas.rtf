@@ -183,6 +183,7 @@ $w.onReady(async function () {
             const { valorReais, pontosNecessarios, resgatesDisponiveis } = itemData;
 
             $item('#textValorCupom').text = `R$${valorReais}`;
+            $item('#textValorPontos').text = `${pontosNecessarios} Pixel Points`;
             $item('#textRestamCupom').text = `${resgatesDisponiveis}/10 resgates`;
 
             const podeResgatar = pontosUsuario >= pontosNecessarios && resgatesDisponiveis > 0;
@@ -196,7 +197,7 @@ $w.onReady(async function () {
 
                 try {
                     const resultado = await resgatarCupom(valorReais);
-                    $item('#btnResgatarCupom').label = `Cupom: ${resultado.codigo}`;
+                    $item('#btnResgatarCupom').label = `Resgatado!`;
                     await atualizarTudo();
                 } catch (erro) {
                     console.error("Erro ao resgatar cupom:", erro);
