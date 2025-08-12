@@ -2,6 +2,7 @@
 import wixUsers from 'wix-users';
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
+import wixWindow from 'wix-window';
 import { obterQuantidadesDeCuponsDisponiveis, resgatarCupom } from 'backend/recompensas';
 
 let pontosUsuario = 0;
@@ -11,25 +12,48 @@ $w.onReady(async function () {
     const user = wixUsers.currentUser;
     if (!user.loggedIn) return;
 
-    const userId = user.id;
-    const hoje = new Date();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const ano = hoje.getFullYear();
-    const mesAnoAtual = `${mes}/${ano}`;
+    async function atualizarPontosUsuario() {
+        const userId = user.id;
+        const hoje = new Date();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const ano = hoje.getFullYear();
+        const mesAnoAtual = `${mes}/${ano}`;
 
-    // Buscar pontos e progresso do usuário
-    const { items: progresso } = await wixData.query("ProgressoUsuarios")
-        .eq("userId", userId)
-        .eq("mesAno", mesAnoAtual)
-        .limit(1)
-        .find();
+        // Buscar pontos e progresso do usuário
+        const { items: progresso } = await wixData.query("ProgressoUsuarios")
+            .eq("userId", userId)
+            .eq("mesAno", mesAnoAtual)
+            .limit(1)
+            .find();
 
-    if (progresso.length > 0) {
-        pontosUsuario = progresso[0].pontosGanhos || 0;
-        totalComprasUsuario = progresso[0].totalCompras || 0;
+        if (progresso.length > 0) {
+            pontosUsuario = progresso[0].pontosGanhos || 0;
+            totalComprasUsuario = progresso[0].totalCompras || 0;
+        } else {
+            pontosUsuario = 0;
+            totalComprasUsuario = 0;
+        }
+        $w('#textPontosUsuario').text = `${pontosUsuario}`;
     }
 
-    $w('#textPontosUsuario').text = `${pontosUsuario}`;
+    async function atualizarRepeaterCupons() {
+        const contagem = await obterQuantidadesDeCuponsDisponiveis();
+
+        const opcoes = Array.from({ length: 10 }, (_, i) => {
+            const valor = i + 1;
+            return {
+                _id: `cupom-${valor}`, // ID obrigatório
+                valorReais: valor,
+                pontosNecessarios: valor * 20,
+                resgatesDisponiveis: contagem[valor] || 0
+            };
+        });
+
+        $w('#repeaterCupom').data = opcoes;
+    }
+
+    // Carregar dados iniciais
+    await atualizarPontosUsuario();
 
     // Buscar recompensas
     const { items: recompensas } = await wixData.query("RecompensasDisponiveis")
@@ -106,7 +130,9 @@ $w.onReady(async function () {
     // RECOMPENSA DE CUPONS POR PONTOS
     // ---------------------------------------------------
     $w('#btnCriarCupom').onClick(async () => {
-        $w('#caixaRepeaterCupom').expand();
+        $w('#abaRepeaterCupom').expand();
+
+        await atualizarRepeaterCupons();
 
         const contagem = await obterQuantidadesDeCuponsDisponiveis();
 
@@ -140,6 +166,10 @@ $w.onReady(async function () {
                 try {
                     const resultado = await resgatarCupom(valorReais);
                     $item('#btnResgatarCupom').label = `Cupom: ${resultado.codigo}`;
+                    // Atualiza os pontos e o repeater logo após resgatar
+                    await atualizarPontosUsuario();
+                    await atualizarRepeaterCupons();
+
                 } catch (erro) {
                     console.error(erro);
                     $item('#btnResgatarCupom').label = "Erro ao resgatar";
@@ -157,9 +187,60 @@ $w.onReady(async function () {
             });
         });
     });
+
+    // Função para carregar cupons usados pelo usuário
+    async function carregarCuponsUsuario() {
+        const user = wixUsers.currentUser;
+        if (!user.loggedIn) {
+            $w('#repeaterMeusCupons').data = [];
+            return;
+        }
+        const userId = user.id;
+
+        const resultado = await wixData.query('UsoDePontos')
+            .eq('userId', userId)
+            .descending('dataUso') // ordenar do mais recente
+            .limit(50)
+            .find();
+
+        const cupons = resultado.items.map(item => ({
+            _id: item._id,
+            valorDescontado: item.valorDescontado,
+            codigoCupom: item.codigoCupom
+        }));
+
+        if (cupons.length === 0) {
+            // Oculta a caixa e mostra mensagem
+            $w('#repeaterMeusCupons').collapse();
+            $w('#textSemCupons').show(); // crie esse texto no editor, inicialmente escondido
+        } else {
+            // Mostra a caixa e esconde mensagem
+            $w('#repeaterMeusCupons').expand();
+            $w('#textSemCupons').hide();
+            $w('#repeaterMeusCupons').data = cupons;
+        }
+    }
+    // No onItemReady do repeaterMeusCupons, configurar os textos e botão copiar
+    $w('#repeaterMeusCupons').onItemReady(($item, itemData) => {
+        $item('#textValorCupomUsado').text = `R$${itemData.valorDescontado}`;
+        $item('#textCodigoCupomUsado').text = itemData.codigoCupom;
+
+        $item('#btnCopiarCupom').onClick(() => {
+            wixWindow.copyToClipboard(itemData.codigoCupom)
+                .then(() => {
+                    $item('#btnCopiarCupom').label = 'Copiado!';
+                    setTimeout(() => {
+                        $item('#btnCopiarCupom').label = 'Copiar';
+                    }, 2000);
+                })
+                .catch(() => {
+                    $item('#btnCopiarCupom').label = 'Erro';
+                });
+        });
+    });
 })
 
 $w('#btnFecharCaixaCupom').onClick((event) => {
-    $w('#caixaRepeaterCupom').collapse();
+    $w('#abaRepeaterCupom').collapse();
 
 })

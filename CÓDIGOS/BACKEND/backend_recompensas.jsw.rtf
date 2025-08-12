@@ -110,13 +110,24 @@ export async function resgatarCupom(valorReais) {
     .limit(1)
     .find();
 
-  if (progressoRes.items.length === 0) throw new Error('Registro de pontos não encontrado.');
+  if (progressoRes.items.length === 0) {
+    throw new Error('Registro de pontos não encontrado.');
+  }
 
   const progressoDoc = progressoRes.items[0];
   const pontosAtuais = Number(progressoDoc.pontosGanhos) || 0;
   const pontosNecessarios = valorReais * TAXA_CONVERSAO;
 
-  if (pontosAtuais < pontosNecessarios) throw new Error('Você não tem pontos suficientes.');
+  if (pontosAtuais < pontosNecessarios) {
+    throw new Error('Você não tem pontos suficientes.');
+  }
+
+  const novoPontos = pontosAtuais - pontosNecessarios;
+
+  if (novoPontos < 0) {
+    throw new Error('Saldo de pontos insuficiente.');
+  }
+
 
   const usadosCount = await wixData.query('UsoDePontos')
     .eq('userId', userId)
@@ -146,13 +157,14 @@ export async function resgatarCupom(valorReais) {
 
   await wixData.insert('UsoDePontos', uso);
 
-  const novoPontos = pontosAtuais - pontosNecessarios;
-  await wixData.update("ProgressoUsuarios", {
-    _id: progressoDoc._id,
-    pontosGanhos: novoPontos
-  });
+  // atualiza pontos mantendo os outros campos
+  progressoDoc.pontosGanhos = novoPontos;
+  await wixData.update('ProgressoUsuarios', progressoDoc);
 
-  return { codigo: cupomSelecionado.codigo, valorReais };
+  return {
+    codigo: cupomSelecionado.codigo,
+    valorReais: valorReais
+  }
 }
 
 export async function testarLeituraImport946() {
