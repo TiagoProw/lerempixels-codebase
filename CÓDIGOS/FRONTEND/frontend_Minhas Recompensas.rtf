@@ -1,4 +1,3 @@
-// frontend/Minhas Recompensas
 import wixUsers from 'wix-users';
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
@@ -10,8 +9,16 @@ let totalComprasUsuario = 0;
 
 $w.onReady(async function () {
     const user = wixUsers.currentUser;
-    if (!user.loggedIn) return;
 
+    if (!user.loggedIn) {
+        console.log("Usuário não está logado.");
+        // Opcional: redirecionar ou mostrar mensagem
+        return;
+    }
+
+    console.log("Usuário logado, ID:", user.id);
+
+    // Atualiza os pontos e total de compras do usuário
     async function atualizarPontosUsuario() {
         const userId = user.id;
         const hoje = new Date();
@@ -19,7 +26,6 @@ $w.onReady(async function () {
         const ano = hoje.getFullYear();
         const mesAnoAtual = `${mes}/${ano}`;
 
-        // Buscar pontos e progresso do usuário
         const { items: progresso } = await wixData.query("ProgressoUsuarios")
             .eq("userId", userId)
             .eq("mesAno", mesAnoAtual)
@@ -33,16 +39,19 @@ $w.onReady(async function () {
             pontosUsuario = 0;
             totalComprasUsuario = 0;
         }
+
+        console.log("Pontos do usuário atualizados:", pontosUsuario, "Total compras:", totalComprasUsuario);
         $w('#textPontosUsuario').text = `${pontosUsuario}`;
     }
 
+    // Atualiza o repeater de cupons disponíveis para resgate
     async function atualizarRepeaterCupons() {
         const contagem = await obterQuantidadesDeCuponsDisponiveis();
 
         const opcoes = Array.from({ length: 10 }, (_, i) => {
             const valor = i + 1;
             return {
-                _id: `cupom-${valor}`, // ID obrigatório
+                _id: `cupom-${valor}`,
                 valorReais: valor,
                 pontosNecessarios: valor * 20,
                 resgatesDisponiveis: contagem[valor] || 0
@@ -52,101 +61,123 @@ $w.onReady(async function () {
         $w('#repeaterCupom').data = opcoes;
     }
 
-    // Carregar dados iniciais
-    await atualizarPontosUsuario();
+    // Carrega o repeater de recompensas baseado nos pontos do usuário
+    async function carregarRecompensas() {
+        const { items: recompensas } = await wixData.query("RecompensasDisponiveis")
+            .eq("ativo", true)
+            .find();
 
-    // Buscar recompensas
-    const { items: recompensas } = await wixData.query("RecompensasDisponiveis")
-        .eq("ativo", true)
-        .find();
+        $w("#repeaterRecompensas").data = recompensas;
 
-    $w("#repeaterRecompensas").data = recompensas;
+        $w("#repeaterRecompensas").onItemReady(($item, itemData) => {
+            const pontosNecessarios = itemData.pontosNecessarios || 0;
+            const tipoResgate = itemData.tipoResgate || "cupom";
+            const titulo = itemData.userId || "Sem título";
+            const descricao = itemData.descricao || "Sem descrição";
 
-    $w("#repeaterRecompensas").onItemReady(($item, itemData) => {
-        const pontosNecessarios = itemData.pontosNecessarios || 0;
-        const tipoResgate = itemData.tipoResgate || "cupom";
-        const titulo = itemData.userId || "Sem título";
-        const descricao = itemData.descricao || "Sem descrição";
+            $item('#textTitulo').text = titulo;
+            $item('#textDescricao').text = descricao;
+            $item('#textCupom').collapse();
+            $item('#btnObterCupom').hide();
+            $item('#barraProgresso').hide();
 
-        $item('#textTitulo').text = titulo;
-        $item('#textDescricao').text = descricao;
-        $item('#textCupom').collapse();
-        $item('#btnObterCupom').hide();
-        $item('#barraProgresso').hide();
+            if (tipoResgate === "cupom") {
+                $item('#textPontosNecessarios').text = `${pontosNecessarios} Pixel Points`;
+                const podeResgatar = pontosUsuario >= pontosNecessarios;
 
-        // CUPOM — padrão
-        if (tipoResgate === "cupom") {
-            $item('#textPontosNecessarios').text = `${pontosNecessarios} Pixel Points`;
-            const podeResgatar = pontosUsuario >= pontosNecessarios;
+                $item('#btnObterCupom').label = podeResgatar ? "Obter Cupom" : "Pontos Insuficientes";
+                podeResgatar ? $item('#btnObterCupom').enable() : $item('#btnObterCupom').disable();
+                $item('#btnObterCupom').show();
 
-            $item('#btnObterCupom').label = podeResgatar ? "Obter Cupom" : "Pontos Insuficientes";
-            podeResgatar ? $item('#btnObterCupom').enable() : $item('#btnObterCupom').disable();
-            $item('#btnObterCupom').show();
+                $item('#btnObterCupom').onClick(() => {
+                    if (podeResgatar) {
+                        $item('#textCupom').text = itemData.codigoDesconto || "Cupom não disponível";
+                        $item('#textCupom').expand();
+                        $item('#btnObterCupom').label = "Cupom Exibido";
+                        $item('#btnObterCupom').disable();
+                    }
+                });
+            } else if (tipoResgate === "progresso") {
+                if (titulo.toLowerCase().includes("compra")) {
+                    const comprasNecessarias = 2;
+                    const progresso = Math.min(totalComprasUsuario / comprasNecessarias, 1);
 
-            $item('#btnObterCupom').onClick(() => {
-                if (podeResgatar) {
-                    $item('#textCupom').text = itemData.codigoDesconto || "Cupom não disponível";
-                    $item('#textCupom').expand();
-                    $item('#btnObterCupom').label = "Cupom Exibido";
-                    $item('#btnObterCupom').disable();
+                    $item('#textPontosNecessarios').text = `${totalComprasUsuario} de ${comprasNecessarias} compras` + (progresso >= 1 ? " ✔️" : "");
+                    $item('#barraProgresso').value = progresso * 100;
+                    $item('#barraProgresso').show();
+                } else if (pontosNecessarios > 0) {
+                    const pontosMostrados = Math.min(pontosUsuario, pontosNecessarios);
+                    $item('#textPontosNecessarios').text = `${pontosMostrados} de ${pontosNecessarios} Pixel Points` + (pontosUsuario >= pontosNecessarios ? " ✔️" : "");
+                    $item('#barraProgresso').value = pontosMostrados / pontosNecessarios * 100;
+                    $item('#barraProgresso').show();
+                } else {
+                    $item('#textPontosNecessarios').text = `Concluído ✔️`;
                 }
-            });
-        }
-
-        // PROGRESSO — baseado em compras ou pontos
-        else if (tipoResgate === "progresso") {
-            if (titulo.toLowerCase().includes("compra")) {
-                // Recompensa baseada em compras (ex: 2 compras no mês)
-                const comprasNecessarias = 2;
-                const progresso = Math.min(totalComprasUsuario / comprasNecessarias, 1);
-
-                $item('#textPontosNecessarios').text = `${totalComprasUsuario} de ${comprasNecessarias} compras` + (progresso >= 1 ? " ✔️" : "");
-                $item('#barraProgresso').value = progresso * 100;
-                $item('#barraProgresso').show();
-            } else if (pontosNecessarios > 0) {
-                // Recompensa baseada em pontos (ex: 200 Pixel Points)
-                const pontosMostrados = Math.min(pontosUsuario, pontosNecessarios);
-                $item('#textPontosNecessarios').text = `${pontosMostrados} de ${pontosNecessarios} Pixel Points` + (pontosUsuario >= pontosNecessarios ? " ✔️" : "");
-                $item('#barraProgresso').value = pontosMostrados / pontosNecessarios * 100;
-                $item('#barraProgresso').show();
-            } else {
-                // Missões com 0 pontos necessários (cumpridas automaticamente)
-                $item('#textPontosNecessarios').text = `Concluido ✔️`;
+            } else if (tipoResgate === "externo" && itemData.codigoDesconto) {
+                $item('#textPontosNecessarios').text = `Clique para acessar`;
+                $item('#btnObterCupom').label = "Acessar";
+                $item('#btnObterCupom').enable();
+                $item('#btnObterCupom').onClick(() => {
+                    wixLocation.to(itemData.codigoDesconto);
+                });
+                $item('#btnObterCupom').show();
             }
+        });
+    }
+
+    // Função para carregar os cupons usados pelo usuário
+    async function carregarCuponsUsuario() {
+        const userId = user.id;
+
+        const { items } = await wixData.query("UsoDePontos")
+            .eq("userId", userId)
+            .descending("_createdDate")
+            .find();
+
+        if (!items.length) {
+            $w('#meusCuponsContainer').collapse();
+            $w('#textSemCupons').text = "Você não tem cupons";
+            $w('#textSemCupons').expand();
+            return;
         }
 
-        // EXTERNO — link externo no código do cupom
-        else if (tipoResgate === "externo" && itemData.codigoDesconto) {
-            $item('#textPontosNecessarios').text = `Clique para acessar`;
-            $item('#btnObterCupom').label = "Acessar";
-            $item('#btnObterCupom').enable();
-            $item('#btnObterCupom').onClick(() => {
-                wixLocation.to(itemData.codigoDesconto);
+        $w('#textSemCupons').collapse();
+        $w('#meusCuponsContainer').expand();
+        $w('#repeaterMeusCupons').data = items;
+
+        $w('#repeaterMeusCupons').onItemReady(($item, itemData) => {
+            $item('#textValorCupomUsado').text = `R$${itemData.valorDescontado}`;
+            $item('#textCodigoCupomUsado').text = itemData.codigoCupom;
+
+            $item('#btnCopiarCupom').onClick(() => {
+                wixWindow.copyToClipboard(itemData.codigoCupom)
+                    .then(() => {
+                        $item('#btnCopiarCupom').label = "Copiado!";
+                        $item('#btnCopiarCupom').style.color = "green"; // altera a cor para verde
+                        setTimeout(() => {
+                            $item('#btnCopiarCupom').label = "Copiar";
+                            $item('#btnCopiarCupom').style.color = ""; // reseta a cor para padrão
+                        }, 1500);
+                    });
             });
-            $item('#btnObterCupom').show();
-        }
-    });
-    // ---------------------------------------------------
-    // RECOMPENSA DE CUPONS POR PONTOS
-    // ---------------------------------------------------
+        });
+    }
+
+    // Função para atualizar tudo que depende de pontos
+    async function atualizarTudo() {
+        await atualizarPontosUsuario();
+        await carregarRecompensas();
+        await atualizarRepeaterCupons();
+    }
+
+    // Inicialização principal
+    await atualizarTudo();
+    await carregarCuponsUsuario();
+
+    // Evento botão para abrir a aba dos cupons para resgatar
     $w('#btnCriarCupom').onClick(async () => {
         $w('#abaRepeaterCupom').expand();
-
         await atualizarRepeaterCupons();
-
-        const contagem = await obterQuantidadesDeCuponsDisponiveis();
-
-        const opcoes = Array.from({ length: 10 }, (_, i) => {
-            const valor = i + 1;
-            return {
-                _id: `cupom-${valor}`, // <- Adiciona o ID obrigatório
-                valorReais: valor,
-                pontosNecessarios: valor * 20,
-                resgatesDisponiveis: contagem[valor] || 0
-            };
-        });
-
-        $w('#repeaterCupom').data = opcoes;
 
         $w('#repeaterCupom').onItemReady(($item, itemData) => {
             const { valorReais, pontosNecessarios, resgatesDisponiveis } = itemData;
@@ -166,12 +197,9 @@ $w.onReady(async function () {
                 try {
                     const resultado = await resgatarCupom(valorReais);
                     $item('#btnResgatarCupom').label = `Cupom: ${resultado.codigo}`;
-                    // Atualiza os pontos e o repeater logo após resgatar
-                    await atualizarPontosUsuario();
-                    await atualizarRepeaterCupons();
-
+                    await atualizarTudo();
                 } catch (erro) {
-                    console.error(erro);
+                    console.error("Erro ao resgatar cupom:", erro);
                     $item('#btnResgatarCupom').label = "Erro ao resgatar";
                     setTimeout(() => {
                         $item('#btnResgatarCupom').label = "Tentar novamente";
@@ -179,68 +207,21 @@ $w.onReady(async function () {
                     }, 3000);
                 }
             });
-            console.log("Repetidor carregando:", {
-                valor: itemData.valorReais,
-                pontosNecessarios: itemData.pontosNecessarios,
-                resgatesDisponiveis: itemData.resgatesDisponiveis,
-                pontosUsuario: pontosUsuario
+
+            console.log("Repetidor carregando cupom:", {
+                valorReais,
+                pontosNecessarios,
+                resgatesDisponiveis,
+                pontosUsuario
             });
         });
     });
 
-    // Função para carregar cupons usados pelo usuário
-    async function carregarCuponsUsuario() {
-        const user = wixUsers.currentUser;
-        if (!user.loggedIn) {
-            $w('#repeaterMeusCupons').data = [];
-            return;
-        }
-        const userId = user.id;
-
-        const resultado = await wixData.query('UsoDePontos')
-            .eq('userId', userId)
-            .descending('dataUso') // ordenar do mais recente
-            .limit(50)
-            .find();
-
-        const cupons = resultado.items.map(item => ({
-            _id: item._id,
-            valorDescontado: item.valorDescontado,
-            codigoCupom: item.codigoCupom
-        }));
-
-        if (cupons.length === 0) {
-            // Oculta a caixa e mostra mensagem
-            $w('#repeaterMeusCupons').collapse();
-            $w('#textSemCupons').show(); // crie esse texto no editor, inicialmente escondido
-        } else {
-            // Mostra a caixa e esconde mensagem
-            $w('#repeaterMeusCupons').expand();
-            $w('#textSemCupons').hide();
-            $w('#repeaterMeusCupons').data = cupons;
-        }
-    }
-    // No onItemReady do repeaterMeusCupons, configurar os textos e botão copiar
-    $w('#repeaterMeusCupons').onItemReady(($item, itemData) => {
-        $item('#textValorCupomUsado').text = `R$${itemData.valorDescontado}`;
-        $item('#textCodigoCupomUsado').text = itemData.codigoCupom;
-
-        $item('#btnCopiarCupom').onClick(() => {
-            wixWindow.copyToClipboard(itemData.codigoCupom)
-                .then(() => {
-                    $item('#btnCopiarCupom').label = 'Copiado!';
-                    setTimeout(() => {
-                        $item('#btnCopiarCupom').label = 'Copiar';
-                    }, 2000);
-                })
-                .catch(() => {
-                    $item('#btnCopiarCupom').label = 'Erro';
-                });
-        });
+    // Evento para fechar aba de cupons
+    $w('#btnFecharCaixaCupom').onClick(() => {
+        $w('#abaRepeaterCupom').collapse();
     });
-})
-
-$w('#btnFecharCaixaCupom').onClick((event) => {
-    $w('#abaRepeaterCupom').collapse();
-
-})
+    $w('#btnFecharCaixaCupom2').onClick((event) => {
+        $w('#abaRepeaterCupom').collapse();
+    })
+});
