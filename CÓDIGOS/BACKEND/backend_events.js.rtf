@@ -1,0 +1,19 @@
+//backend/events.js
+import wixData from 'wix-data';
+
+export function ProgressoUsuarios_afterUpdate(item, context) {
+    const { totalCompras, pontosGanhos, mesAno, userId } = item;
+    const hoje = new Date();
+    const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+    const anoAtual = hoje.getFullYear();
+    const mesAnoAtual = `${mesAtual}/${anoAtual}`;
+
+    if (mesAno === mesAnoAtual && totalCompras >= 2) {
+        wixData.update("ProgressoUsuarios", {
+            ...item,
+            pontosGanhos: pontosGanhos + 25
+        })
+        .then(() => console.log(`+25 pontos dados para o usuário ${userId}`))
+        .catch(err => console.error("Erro ao atualizar pontos:", err));
+    }
+}
