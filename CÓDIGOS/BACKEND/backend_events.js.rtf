@@ -8,7 +8,7 @@ export async function wixStores_onOrderPaid(event) {
         const contactId = event.buyerInfo.id;
 
         // Converte contactId para userId (mesmo que o frontend usa)
-        const userId = await wixUsersBackend.getUserId(contactId);
+        const userId = await wixUsersBackend.getUser(contactId);
         if (!userId) {
             console.warn(`Usuário não encontrado para contactId: ${contactId}`);
             return;
