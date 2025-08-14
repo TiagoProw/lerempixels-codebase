@@ -1,0 +1,18 @@
+// backend/testSimulacao.jsw
+import wixData from 'wix-data';
+import { wixStores_onOrderPaid } from 'backend/events.js';
+
+export async function simulaCompraPaga(orderId) {
+  const result = await wixData.query('Stores/Orders')
+    .eq('_id', orderId)
+    .find({ suppressAuth: true });
+
+  if (!result.items.length) {
+    throw new Error(`Pedido ${orderId} não encontrado.`);
+  }
+
+  const order = result.items[0];
+  // Simula o evento como se fosse pago
+  await wixStores_onOrderPaid({ buyerInfo: order.buyerInfo });
+  return `Simulação feita para orderId: ${orderId}`;
+}
