@@ -1,19 +1,50 @@
-//backend/events.js
-import wixData from 'wix-data';
+// backend/events.js
+import wixData from "wix-data";
+import wixStores from "wix-stores-backend";
 
-export function ProgressoUsuarios_afterUpdate(item, context) {
-    const { totalCompras, pontosGanhos, mesAno, userId } = item;
+// Quando um pedido é marcado como pago
+export function wixStores_onOrderPaid(order) {
+    const contactId = order.buyerInfo.id; // ID do comprador no Wix
     const hoje = new Date();
     const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
     const anoAtual = hoje.getFullYear();
     const mesAnoAtual = `${mesAtual}/${anoAtual}`;
 
-    if (mesAno === mesAnoAtual && totalCompras >= 2) {
-        wixData.update("ProgressoUsuarios", {
-            ...item,
-            pontosGanhos: pontosGanhos + 25
+    // 1. Buscar o progresso atual do usuário nesse mês
+    wixData.query("ProgressoUsuarios")
+        .eq("userId", contactId) // se na sua coleção o campo chama userId, mantemos assim
+        .eq("mesAno", mesAnoAtual)
+        .find()
+        .then(res => {
+            let registro = res.items[0];
+
+            if (!registro) {
+                // Se não existe, cria um novo registro para o mês
+                registro = {
+                    userId: contactId,
+                    mesAno: mesAnoAtual,
+                    pontosGanhos: 0,
+                    totalCompras: 0,
+                    bonusConcedido: false // novo campo que você precisa criar na coleção
+                };
+            }
+
+            // 2. Atualizar total de compras
+            registro.totalCompras = (registro.totalCompras || 0) + 1;
+
+            // 3. Verificar se chegou à 2ª compra e bônus ainda não foi concedido
+            if (registro.totalCompras >= 2 && !registro.bonusConcedido) {
+                registro.pontosGanhos = (registro.pontosGanhos || 0) + 25;
+                registro.bonusConcedido = true;
+                console.log(`Bônus de 25 pontos concedido ao usuário ${contactId}`);
+            }
+
+            // 4. Salvar no banco
+            return registro._id
+                ? wixData.update("ProgressoUsuarios", registro)
+                : wixData.insert("ProgressoUsuarios", registro);
         })
-        .then(() => console.log(`+25 pontos dados para o usuário ${userId}`))
-        .catch(err => console.error("Erro ao atualizar pontos:", err));
-    }
+        .catch(err => {
+            console.error("Erro ao atualizar progresso do usuário:", err);
+        });
 }
