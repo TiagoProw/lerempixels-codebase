@@ -1,91 +1,75 @@
 // backend/events.js
 import wixData from "wix-data";
-import wixUsersBackend from "wix-users-backend";
 
 export async function wixStores_onOrderPaid(event) {
-    try {
-        // Pega o contactId do comprador
-        const contactId = event.buyerInfo.id;
+  try {
+    const userId = event.buyerInfo.id;
+    const hoje = new Date();
+    const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+    const anoAtual = hoje.getFullYear();
+    const mesAnoAtual = `${mesAtual}/${anoAtual}`;
 
-        // Converte contactId para userId (mesmo que o frontend usa)
-        const userId = await wixUsersBackend.getUser(contactId);
-        if (!userId) {
-            console.warn(`Usuário não encontrado para contactId: ${contactId}`);
-            return;
-        }
-
-        const hoje = new Date();
-        const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
-        const anoAtual = hoje.getFullYear();
-        const mesAnoAtual = `${mesAtual}/${anoAtual}`;
-
-        // --- 1) Reset mensal automático ---
-        if (hoje.getDate() === 1) {
-            await resetBonusMensal();
-        }
-
-        // --- 2) Atualizar totalCompras ---
-        let { items } = await wixData.query("ProgressoUsuarios")
-            .eq("userId", userId)
-            .eq("mesAno", mesAnoAtual)
-            .limit(1)
-            .find();
-
-        if (items.length > 0) {
-            let progresso = items[0];
-            progresso.totalCompras = (progresso.totalCompras || 0) + 1;
-
-            // Se atingiu 2 compras e não recebeu o bônus ainda
-            if (progresso.totalCompras >= 2 && !progresso.bonusConcedido) {
-                progresso.pontosGanhos = (progresso.pontosGanhos || 0) + 25;
-                progresso.bonusConcedido = true;
-                console.log(`Bônus concedido para usuário ${userId}`);
-            }
-
-            await wixData.update("ProgressoUsuarios", progresso);
-        } else {
-            // Criar novo registro se não existir
-            await wixData.insert("ProgressoUsuarios", {
-                userId: userId,
-                mesAno: mesAnoAtual,
-                totalCompras: 1,
-                pontosGanhos: 0,
-                bonusConcedido: false
-            });
-        }
-
-    } catch (err) {
-        console.error("Erro no processamento de bônus:", err);
+    // Reset automático no 1º dia
+    if (hoje.getDate() === 1) {
+      await resetBonusMensal();
     }
+
+    const queryResult = await wixData.query("ProgressoUsuarios")
+      .eq("userId", userId)
+      .eq("mesAno", mesAnoAtual)
+      .limit(1)
+      .find();
+
+    let registro = queryResult.items[0];
+    if (registro) {
+      registro.totalCompras = (registro.totalCompras || 0) + 1;
+      if (registro.totalCompras >= 2 && !registro.bonusConcedido) {
+        registro.pontosGanhos = (registro.pontosGanhos || 0) + 25;
+        registro.bonusConcedido = true;
+        console.log(`Bônus concedido ao usuário ${userId}`);
+      }
+      await wixData.update("ProgressoUsuarios", registro);
+    } else {
+      await wixData.insert("ProgressoUsuarios", {
+        userId,
+        mesAno: mesAnoAtual,
+        totalCompras: 1,
+        pontosGanhos: 0,
+        bonusConcedido: false
+      });
+    }
+  } catch (err) {
+    console.error("Erro no processamento de bônus:", err);
+  }
 }
 
-// --- Função de reset mensal integrada ---
 async function resetBonusMensal() {
-    try {
-        let pagina = 0;
-        let registrosAtualizados = 0;
+  try {
+    let pagina = 0, registrosAtualizados = 0;
 
-        while (true) {
-            const { items, length } = await wixData.query("ProgressoUsuarios")
-                .limit(1000)
-                .skip(pagina * 1000)
-                .find();
+    let continuar = true;
+    while (continuar) {
+      const { items, length } = await wixData.query("ProgressoUsuarios")
+        .limit(1000)
+        .skip(pagina * 1000)
+        .find();
 
-            if (length === 0) break;
+      if (length === 0) {
+        continuar = false;
+        break;
+      }
 
-            const atualizados = items.map(item => {
-                item.bonusConcedido = false;
-                return item;
-            });
+      await Promise.all(items.map(item => {
+        item.bonusConcedido = false;
+        return wixData.update("ProgressoUsuarios", item);
+      }));
 
-            await Promise.all(atualizados.map(r => wixData.update("ProgressoUsuarios", r)));
-            registrosAtualizados += atualizados.length;
-
-            pagina++;
-        }
-
-        console.log(`Reset mensal concluído: ${registrosAtualizados} registros atualizados.`);
-    } catch (err) {
-        console.error("Erro no reset mensal:", err);
+      registrosAtualizados += items.length;
+      pagina++;
     }
+
+    console.log(`Reset mensal completo — ${registrosAtualizados} registros atualizados.`);
+  } catch (err) {
+    console.error("Erro no reset mensal:", err);
+  }
 }
