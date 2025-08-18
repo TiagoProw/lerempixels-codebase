@@ -1,6 +1,7 @@
 // backend/recompensas.jsw
 import wixData from 'wix-data';
 import { currentMember } from 'wix-members-backend';
+import { authorization } from 'wix-members-backend';
 
 const TAXA_CONVERSAO = 20;
 const LIMITE_POR_VALOR = 10;
@@ -39,6 +40,7 @@ export async function simularCompraTeste(userId) {
     };
 
     await wixData.update("ProgressoUsuarios", itemAtualizado);
+    await checkAndGrantEbooksAccess(userId);
 
     //-------------------CONSOLE.LOG----------------------------------------
     console.log("Registro atualizado com sucesso:", itemAtualizado);
@@ -59,6 +61,25 @@ export async function simularCompraTeste(userId) {
     console.log("Novo registro criado:", novoRegistro);
     //-------------------CONSOLE.LOG----------------------------------------
 
+  }
+  async function checkAndGrantEbooksAccess(userId) {
+    const progressoRes = await wixData.query("ProgressoUsuarios")
+      .eq("userId", userId)
+      .find();
+
+    const totalPontos = progressoRes.items.reduce(
+      (soma, item) => soma + (item.pontosGanhos || 0),
+      0
+    );
+
+    if (totalPontos >= 200) {
+      try {
+        await authorization.assignRole(userId, "AcessoEbooks");
+        console.log(`Role 'AcessoEbooks' atribuída ao usuário ${userId}`);
+      } catch (e) {
+        console.error("Erro ao atribuir role:", e);
+      }
+    }
   }
 }
 
