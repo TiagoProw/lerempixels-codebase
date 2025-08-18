@@ -13,7 +13,7 @@ export async function getTotalPontosDoUsuario() {
         .eq("userId", userId)
         .find();
 
-    return items.reduce((total, item) => total + (item.pontosGanhos || 0), 0);
+    return items.reduce((total, item) => total + (item.pontosAtuais || 0), 0);
 }
 
 // Calcula quanto o usuário pode descontar com base nos pontos

@@ -31,7 +31,7 @@ export async function getDadosUsuariosFidelidade(mesAno) {
                 email,
                 foto,
                 comprasMes: itemProgresso?.totalCompras || 0,
-                pontosMes: itemProgresso?.pontosGanhos || 0,
+                pontosMes: itemProgresso?.pontosAtuais || 0,
                 totalPontos
             };
         })
@@ -45,7 +45,7 @@ async function getPontosTotais(userId) {
     const { items } = await wixData.query('ProgressoUsuarios')
         .eq('userId', userId)
         .find();
-    return items.reduce((tot, it) => tot + (it.pontosGanhos || 0), 0);
+    return items.reduce((tot, it) => tot + (it.pontosAtuais || 0), 0);
 }
 
 /* ---------- AJUSTE MANUAL ---------- */
@@ -57,13 +57,13 @@ export async function addPontoManual(userId, mesAno, quantidade) {
 
     if (items.length) {
         const item = items[0];
-        item.pontosGanhos += quantidade;
+        item.pontosAtuais += quantidade;
         return wixData.update('ProgressoUsuarios', item);
     } else {
         const novo = {
             userId,
             mesAno,
-            pontosGanhos: quantidade,
+            pontosAtuais: quantidade,
             totalCompras: 0,
             dataRegistro: new Date()
         };
@@ -79,7 +79,7 @@ export async function removePontoManual(userId, mesAno, quantidade) {
 
     if (items.length) {
         const item = items[0];
-        item.pontosGanhos = Math.max(0, item.pontosGanhos - quantidade);
+        item.pontosAtuais = Math.max(0, item.pontosAtuais - quantidade);
         return wixData.update('ProgressoUsuarios', item);
     }
 }

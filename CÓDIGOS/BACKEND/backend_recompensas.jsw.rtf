@@ -1,37 +1,10 @@
 // backend/recompensas.jsw
 import wixData from 'wix-data';
 import { currentMember } from 'wix-members-backend';
-import { authorization } from 'wix-members-backend';
 
 const TAXA_CONVERSAO = 20;
 const LIMITE_POR_VALOR = 10;
 const MAX_QUERY_LIMIT = 1000;
-
-// ⚠️ Substitua pelo roleId real do painel do Wix
-const ROLE_EBOOKS = "97816dac-066d-47d3-aeb8-31b9b67fd408"; 
-
-// ---------------------------------------------------
-// FUNÇÃO PARA DAR ACESSO AOS EBOOKS
-// ---------------------------------------------------
-async function checkAndGrantEbooksAccess(userId) {
-  const progressoRes = await wixData.query("ProgressoUsuarios")
-    .eq("userId", userId)
-    .find();
-
-  const totalPontos = progressoRes.items.reduce(
-    (soma, item) => soma + (item.pontosGanhos || 0),
-    0
-  );
-
-  if (totalPontos >= 200) {
-    try {
-      await authorization.assignRole(userId, ROLE_EBOOKS);
-      console.log(`✅ Role 'AcessoEbooks' atribuída ao usuário ${userId}`);
-    } catch (e) {
-      console.error("❌ Erro ao atribuir role:", e);
-    }
-  }
-}
 
 // ---------------------------------------------------
 // SIMULA COMPRA E ATUALIZA PROGRESSO
@@ -52,7 +25,7 @@ export async function simularCompraTeste(userId) {
   if (resultado.items.length > 0) {
     const registro = resultado.items[0];
     const novasCompras = (registro.totalCompras || 0) + 1;
-    let novosPontos = registro.pontosGanhos || 0;
+    let novosPontos = registro.pontosAtuais || 0;
 
     if (novasCompras === 2) {
       novosPontos += 1;
@@ -61,12 +34,11 @@ export async function simularCompraTeste(userId) {
     const itemAtualizado = {
       _id: registro._id,
       totalCompras: novasCompras,
-      pontosGanhos: novosPontos,
+      pontosAtuais: novosPontos,
       dataRegistro: new Date()
     };
 
     await wixData.update("ProgressoUsuarios", itemAtualizado);
-    await checkAndGrantEbooksAccess(userId);
 
     console.log("Registro atualizado com sucesso:", itemAtualizado);
 
@@ -75,12 +47,11 @@ export async function simularCompraTeste(userId) {
       userId: userId,
       mesAno: mesAno,
       totalCompras: 1,
-      pontosGanhos: 0,
+      pontosAtuais: 0,
       dataRegistro: new Date()
     };
 
     await wixData.insert("ProgressoUsuarios", novoRegistro);
-    await checkAndGrantEbooksAccess(userId); // ✅ também no else
 
     console.log("Novo registro criado:", novoRegistro);
   }
@@ -136,7 +107,7 @@ export async function resgatarCupom(valorReais) {
   }
 
   const progressoDoc = progressoRes.items[0];
-  const pontosAtuais = Number(progressoDoc.pontosGanhos) || 0;
+  const pontosAtuais = Number(progressoDoc.pontosAtuais) || 0;
   const pontosNecessarios = valorReais * TAXA_CONVERSAO;
 
   if (pontosAtuais < pontosNecessarios) {
@@ -177,7 +148,7 @@ export async function resgatarCupom(valorReais) {
 
   await wixData.insert('UsoDePontos', uso);
 
-  progressoDoc.pontosGanhos = novoPontos;
+  progressoDoc.pontosAtuais = novoPontos;
   await wixData.update('ProgressoUsuarios', progressoDoc);
 
   return {
