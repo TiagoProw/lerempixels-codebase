@@ -7,16 +7,42 @@ const TAXA_CONVERSAO = 20;
 const LIMITE_POR_VALOR = 10;
 const MAX_QUERY_LIMIT = 1000;
 
-// ✅ Simula uma compra e atualiza o progresso do mês para o usuário
+// ⚠️ Substitua pelo roleId real do painel do Wix
+const ROLE_EBOOKS = "8a8f6e87-2c9c-44f2-9a73-5ef9d7d9a111"; 
+
+// ---------------------------------------------------
+// FUNÇÃO PARA DAR ACESSO AOS EBOOKS
+// ---------------------------------------------------
+async function checkAndGrantEbooksAccess(userId) {
+  const progressoRes = await wixData.query("ProgressoUsuarios")
+    .eq("userId", userId)
+    .find();
+
+  const totalPontos = progressoRes.items.reduce(
+    (soma, item) => soma + (item.pontosGanhos || 0),
+    0
+  );
+
+  if (totalPontos >= 200) {
+    try {
+      await authorization.assignRole(userId, ROLE_EBOOKS);
+      console.log(`✅ Role 'AcessoEbooks' atribuída ao usuário ${userId}`);
+    } catch (e) {
+      console.error("❌ Erro ao atribuir role:", e);
+    }
+  }
+}
+
+// ---------------------------------------------------
+// SIMULA COMPRA E ATUALIZA PROGRESSO
+// ---------------------------------------------------
 export async function simularCompraTeste(userId) {
   const dataAtual = new Date();
   const mes = String(dataAtual.getMonth() + 1).padStart(2, "0");
   const ano = dataAtual.getFullYear();
   const mesAno = `${mes}/${ano}`;
 
-  //-------------------CONSOLE.LOG----------------------------------------
   console.log("Simulando compra para:", userId, "no mês:", mesAno);
-  //-------------------CONSOLE.LOG----------------------------------------
 
   const resultado = await wixData.query("ProgressoUsuarios")
     .eq("userId", userId)
@@ -42,9 +68,7 @@ export async function simularCompraTeste(userId) {
     await wixData.update("ProgressoUsuarios", itemAtualizado);
     await checkAndGrantEbooksAccess(userId);
 
-    //-------------------CONSOLE.LOG----------------------------------------
     console.log("Registro atualizado com sucesso:", itemAtualizado);
-    //-------------------CONSOLE.LOG----------------------------------------
 
   } else {
     const novoRegistro = {
@@ -56,38 +80,15 @@ export async function simularCompraTeste(userId) {
     };
 
     await wixData.insert("ProgressoUsuarios", novoRegistro);
+    await checkAndGrantEbooksAccess(userId); // ✅ também no else
 
-    //-------------------CONSOLE.LOG----------------------------------------
     console.log("Novo registro criado:", novoRegistro);
-    //-------------------CONSOLE.LOG----------------------------------------
-
-  }
-  async function checkAndGrantEbooksAccess(userId) {
-    const progressoRes = await wixData.query("ProgressoUsuarios")
-      .eq("userId", userId)
-      .find();
-
-    const totalPontos = progressoRes.items.reduce(
-      (soma, item) => soma + (item.pontosGanhos || 0),
-      0
-    );
-
-    if (totalPontos >= 200) {
-      try {
-        await authorization.assignRole(userId, "AcessoEbooks");
-        console.log(`Role 'AcessoEbooks' atribuída ao usuário ${userId}`);
-      } catch (e) {
-        console.error("Erro ao atribuir role:", e);
-      }
-    }
   }
 }
 
 // ---------------------------------------------------
-// NOVAS FUNÇÕES PARA CUPONS POR PONTOS
+// CUPONS POR PONTOS (inalterado)
 // ---------------------------------------------------
-
-// Retorna a contagem de cupons disponíveis por valor
 async function getCurrentUserId() {
   const member = await currentMember.getMember();
   if (!member || !member._id) throw new Error('Usuário não autenticado.');
@@ -112,7 +113,6 @@ export async function obterQuantidadesDeCuponsDisponiveis() {
   return contagem;
 }
 
-// Novo controle: usuário pode pegar até 10 cupons por valor
 export async function resgatarCupom(valorReais) {
   if (typeof valorReais !== 'number' || !Number.isInteger(valorReais) || valorReais < 1 || valorReais > 10) {
     throw new Error('Valor inválido.');
@@ -149,7 +149,6 @@ export async function resgatarCupom(valorReais) {
     throw new Error('Saldo de pontos insuficiente.');
   }
 
-
   const usadosCount = await wixData.query('UsoDePontos')
     .eq('userId', userId)
     .eq('valorDescontado', valorReais)
@@ -178,7 +177,6 @@ export async function resgatarCupom(valorReais) {
 
   await wixData.insert('UsoDePontos', uso);
 
-  // atualiza pontos mantendo os outros campos
   progressoDoc.pontosGanhos = novoPontos;
   await wixData.update('ProgressoUsuarios', progressoDoc);
 
