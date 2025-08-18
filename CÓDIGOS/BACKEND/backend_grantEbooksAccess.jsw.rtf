@@ -1,0 +1,37 @@
+// backend/grantEbooksAccess.jsw
+import { assignRole } from 'wix-members-backend';
+import wixData from 'wix-data';
+
+/**
+ * Verifica os pontos do usuário e atribui a função "AcessoEbooks"
+ * quando ele acumular 200 pontos ou mais.
+ * 
+ * @param {string} userId - ID do usuário no Wix
+ */
+export async function checkAndGrantEbooksAccess(userId) {
+  try {
+    // Busca o progresso do usuário
+    const result = await wixData.query("ProgressoUsuarios")
+      .eq("_id", userId) // ID do usuário está no campo _id
+      .find();
+
+    if (result.items.length === 0) {
+      console.warn(`Usuário ${userId} não encontrado na coleção ProgressoUsuarios.`);
+      return;
+    }
+
+    const userProgress = result.items[0];
+    const pontos = userProgress.pontosGanhos || 0;
+
+    // Se o usuário tem 200 pontos ou mais → atribui a função
+    if (pontos >= 200) {
+      await assignRole("AcessoEbooks", userId);
+      console.log(`✅ Função AcessoEbooks atribuída ao usuário ${userId}`);
+    } else {
+      console.log(`Usuário ${userId} ainda não atingiu 200 pontos (atual: ${pontos}).`);
+    }
+
+  } catch (err) {
+    console.error("Erro ao verificar ou atribuir função:", err);
+  }
+}
