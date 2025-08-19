@@ -37,9 +37,11 @@ $w.onReady(async function () {
         if (progresso.length > 0) {
             pontosUsuario = progresso[0].pontosAtuais || 0;
             totalComprasUsuario = progresso[0].totalCompras || 0;
+            pontosTotaisAcumulados = progresso[0].pontosTotaisAcumulados || 0;
         } else {
             pontosUsuario = 0;
             totalComprasUsuario = 0;
+            pontosTotaisAcumulados = 0;
         }
 
         console.log("Pontos do usuário atualizados:", pontosUsuario, "Total compras:", totalComprasUsuario);
@@ -107,11 +109,13 @@ $w.onReady(async function () {
                     $item('#textPontosNecessarios').text = `${totalComprasUsuario} de ${comprasNecessarias} compras` + (progresso >= 1 ? " ✔️" : "");
                     $item('#barraProgresso').value = progresso * 100;
                     $item('#barraProgresso').show();
+
                 } else if (pontosNecessarios > 0) {
                     const pontosMostrados = Math.min(pontosTotaisAcumulados, pontosNecessarios);
                     $item('#textPontosNecessarios').text = `${pontosMostrados} de ${pontosNecessarios} Pixel Points` + (pontosTotaisAcumulados >= pontosNecessarios ? " ✔️" : "");
                     $item('#barraProgresso').value = pontosMostrados / pontosNecessarios * 100;
                     $item('#barraProgresso').show();
+
                 } else {
                     $item('#textPontosNecessarios').text = `Concluído ✔️`;
                 }
