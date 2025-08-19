@@ -110,10 +110,21 @@ $w.onReady(async function () {
                     $item('#barraProgresso').value = progresso * 100;
                     $item('#barraProgresso').show();
 
+                } else if ((itemData.pontosTotais || 0) > 0) {
+                    //usa pontosTotaisAcumulados com o requisito 'pontosTotais' da recompensa
+                    const requisito = Number(itemData.pontosTotais) || 0;
+                    const atingido = Math.min(pontosTotaisAcumulados, requisito);
+                    const progresso = Math.min(pontosTotaisAcumulados / requisito, 1);
+
+                    $item('#textPontosNecessarios').text = `${atingido} de ${requisito} Pixel Points` + (pontosTotaisAcumulados >= requisito ? " ✔️" : "");
+                    $item('#barraProgresso').value = progresso * 100;
+                    $item('#barraProgresso').show();
+
                 } else if (pontosNecessarios > 0) {
-                    const pontosMostrados = Math.min(pontosTotaisAcumulados, pontosNecessarios);
-                    $item('#textPontosNecessarios').text = `${pontosMostrados} de ${pontosNecessarios} Pixel Points` + (pontosTotaisAcumulados >= pontosNecessarios ? " ✔️" : "");
-                    $item('#barraProgresso').value = pontosMostrados / pontosNecessarios * 100;
+                    // fallback: usa saldo atual (pontosAtuais)
+                    const pontosMostrados = Math.min(pontosUsuario, pontosNecessarios);
+                    $item('#textPontosNecessarios').text = `${pontosMostrados} de ${pontosNecessarios} Pixel Points` + (pontosUsuario >= pontosNecessarios ? " ✔️" : "");
+                    $item('#barraProgresso').value = (pontosMostrados / pontosNecessarios) * 100;
                     $item('#barraProgresso').show();
 
                 } else {
