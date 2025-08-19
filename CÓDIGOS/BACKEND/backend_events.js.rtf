@@ -1,5 +1,6 @@
 // backend/events.js
 import wixData from "wix-data";
+import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
 
 export async function wixStores_onOrderPaid(event) {
   try {
@@ -30,15 +31,20 @@ export async function wixStores_onOrderPaid(event) {
         console.log(`Bônus concedido ao usuário ${userId}`);
       }
       await wixData.update("ProgressoUsuarios", registro);
+      console.log("✅ Tentando chamar checkAndGrantEbooksAccess para userId no events:", userId);
+      await checkAndGrantEbooksAccess(userId); // ✅ chamada da função após update
     } else {
-      await wixData.insert("ProgressoUsuarios", {
+      const novoRegistro = {
         userId,
         mesAno: mesAnoAtual,
         totalCompras: 1,
         pontosAtuais: 0,
         pontosTotaisAcumulados: 0,
         bonusConcedido: false
-      });
+      };
+      await wixData.insert("ProgressoUsuarios", novoRegistro);
+      await checkAndGrantEbooksAccess(userId); // ✅ chamada da função após insert
+
     }
   } catch (err) {
     console.error("Erro no processamento de bônus:", err);
