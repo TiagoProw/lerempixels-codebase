@@ -12,41 +12,30 @@ export async function getDadosUsuariosFidelidade(mesAno) {
         .limit(1000)
         .find();
 
-    const usuarios = await Promise.all(
-        members.map(async (member) => {
-            const userId = member._id;
-            const itemProgresso = progresso.find(p => p.userId === userId && (mesAno === "todos" || p.mesAno === mesAno));
+    const usuarios = members.map((member) => {
+        const userId = member._id;
+        const itemProgresso = progresso.find(
+            p => p.userId === userId && (mesAno === "todos" || p.mesAno === mesAno)
+        );
 
-            const nome = `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Sem nome';
-            const email = member.email || 'Sem e-mail';
-            const foto = member.picture || 'https://static.wixstatic.com/media/ba53bb_e27872e2c3b2401b872cd1ee7e38a0de~mv2.png';
+        const nome = `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Sem nome';
+        const email = member.email || 'Sem e-mail';
+        const foto = member.picture || 'https://static.wixstatic.com/media/ba53bb_e27872e2c3b2401b872cd1ee7e38a0de~mv2.png';
 
-            const totalPontos = await getPontosTotais(userId);
-
-            return {
-                _id: userId,
-                userId,
-                mesAno: mesAno === "todos" ? "" : (itemProgresso?.mesAno || mesAno),
-                nome,
-                email,
-                foto,
-                comprasMes: itemProgresso?.totalCompras || 0,
-                pontosMes: itemProgresso?.pontosAtuais || 0,
-                totalPontos: await getPontosTotais(userId),
-                pontosTotaisAcumulados: itemProgresso?.pontosTotaisAcumulados || 0
-            };
-        })
-    );
+        return {
+            _id: userId,
+            userId,
+            mesAno: mesAno === "todos" ? "" : (itemProgresso?.mesAno || mesAno),
+            nome,
+            email,
+            foto,
+            comprasMes: itemProgresso?.totalCompras || 0,
+            pontosMes: itemProgresso?.pontosAtuais || 0,
+            pontosTotaisAcumulados: itemProgresso?.pontosTotaisAcumulados || 0
+        };
+    });
 
     return usuarios;
-}
-
-/* ---------- TOTAL DE PONTOS DO USUÁRIO ---------- */
-async function getPontosTotais(userId) {
-    const { items } = await wixData.query('ProgressoUsuarios')
-        .eq('userId', userId)
-        .find();
-    return items.reduce((tot, it) => tot + (it.pontosAtuais || 0), 0);
 }
 
 /* ---------- AJUSTE MANUAL ---------- */
