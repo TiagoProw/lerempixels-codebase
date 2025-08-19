@@ -32,7 +32,8 @@ export async function getDadosUsuariosFidelidade(mesAno) {
                 foto,
                 comprasMes: itemProgresso?.totalCompras || 0,
                 pontosMes: itemProgresso?.pontosAtuais || 0,
-                totalPontos
+                totalPontos: await getPontosTotais(userId),
+                pontosTotaisAcumulados: itemProgresso?.pontosTotaisAcumulados || 0
             };
         })
     );
