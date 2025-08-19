@@ -58,6 +58,7 @@ export async function addPontoManual(userId, mesAno, quantidade) {
     if (items.length) {
         const item = items[0];
         item.pontosAtuais += quantidade;
+        item.pontosTotaisAcumulados = (item.pontosTotaisAcumulados || 0) + quantidade;
         return wixData.update('ProgressoUsuarios', item);
     } else {
         const novo = {
