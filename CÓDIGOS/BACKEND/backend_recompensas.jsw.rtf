@@ -7,57 +7,6 @@ const LIMITE_POR_VALOR = 10;
 const MAX_QUERY_LIMIT = 1000;
 
 // ---------------------------------------------------
-// SIMULA COMPRA E ATUALIZA PROGRESSO
-// ---------------------------------------------------
-export async function simularCompraTeste(userId) {
-  const dataAtual = new Date();
-  const mes = String(dataAtual.getMonth() + 1).padStart(2, "0");
-  const ano = dataAtual.getFullYear();
-  const mesAno = `${mes}/${ano}`;
-
-  console.log("Simulando compra para:", userId, "no mês:", mesAno);
-
-  const resultado = await wixData.query("ProgressoUsuarios")
-    .eq("userId", userId)
-    .eq("mesAno", mesAno)
-    .find();
-
-  if (resultado.items.length > 0) {
-    const registro = resultado.items[0];
-    const novasCompras = (registro.totalCompras || 0) + 1;
-    let novosPontos = registro.pontosAtuais || 0;
-
-    if (novasCompras === 2) {
-      novosPontos += 1;
-    }
-
-    const itemAtualizado = {
-      _id: registro._id,
-      totalCompras: novasCompras,
-      pontosAtuais: novosPontos,
-      dataRegistro: new Date()
-    };
-
-    await wixData.update("ProgressoUsuarios", itemAtualizado);
-
-    console.log("Registro atualizado com sucesso:", itemAtualizado);
-
-  } else {
-    const novoRegistro = {
-      userId: userId,
-      mesAno: mesAno,
-      totalCompras: 1,
-      pontosAtuais: 0,
-      dataRegistro: new Date()
-    };
-
-    await wixData.insert("ProgressoUsuarios", novoRegistro);
-
-    console.log("Novo registro criado:", novoRegistro);
-  }
-}
-
-// ---------------------------------------------------
 // CUPONS POR PONTOS (inalterado)
 // ---------------------------------------------------
 async function getCurrentUserId() {
