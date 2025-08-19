@@ -65,7 +65,7 @@ async function atualizarRepeaterUsuarios() {
         $item('#imgPerfil').src = itemData.foto;
         $item('#textComprasMes').text = String(itemData.comprasMes);
         $item('#textPontosMes').text = String(itemData.pontosMes);
-        $item('#textTotalPontos').text = String(itemData.totalPontos);
+        $item('#textTotalPontos').text = String(itemData.pontosTotaisAcumulados);
 
         $item('#btnAddPonto').onClick(async () => {
             const quantidade = Number($item('#inputPontosManual').value || 1);
