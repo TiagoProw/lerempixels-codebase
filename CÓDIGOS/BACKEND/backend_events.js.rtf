@@ -25,6 +25,7 @@ export async function wixStores_onOrderPaid(event) {
       registro.totalCompras = (registro.totalCompras || 0) + 1;
       if (registro.totalCompras >= 2 && !registro.bonusConcedido) {
         registro.pontosAtuais = (registro.pontosAtuais || 0) + 25;
+        registro.pontosTotaisAcumulados = (registro.pontosTotaisAcumulados || 0) + 25;
         registro.bonusConcedido = true;
         console.log(`Bônus concedido ao usuário ${userId}`);
       }
@@ -35,6 +36,7 @@ export async function wixStores_onOrderPaid(event) {
         mesAno: mesAnoAtual,
         totalCompras: 1,
         pontosAtuais: 0,
+        pontosTotaisAcumulados: 0,
         bonusConcedido: false
       });
     }

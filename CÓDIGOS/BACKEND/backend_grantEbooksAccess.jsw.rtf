@@ -16,7 +16,7 @@ export async function checkAndGrantEbooksAccess(userId) {
 
         if (pontosTotais >= 200 && !progresso.accessGranted) {
             // atribui a função ao membro
-            await authorization.roles.assignRole("AcessoEbooks", userId, { suppressAuth: true });
+            await authorization.assignRole("AcessoEbooks", userId, { suppressAuth: true });
             console.log(`Função "AcessoEbooks" atribuída ao usuário ${userId}`);
 
             // marca para evitar reatribuição

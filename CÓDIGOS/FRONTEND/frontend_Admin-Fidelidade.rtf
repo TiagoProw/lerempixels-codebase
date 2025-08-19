@@ -39,6 +39,7 @@ $w.onReady(async () => {
             userId: $w("#inputTitulo").value,
             descricao: $w("#inputDescricao").value,
             pontosNecessarios: Number($w("#inputPontos").value),
+            pontosTotais: Number($w("#inputPontosTotais").value || 0),
             codigoDesconto: $w("#inputCupom").value,
             tipoResgate: $w("#dropdownTipoResgate").value,
             ativo: $w("#checkboxAtivo").checked
@@ -90,6 +91,7 @@ async function atualizarRepeaterRecompensas() {
         $item("#textTituloRecompensa").text = itemData.userId;
         $item("#textDescricaoRecompensa").text = itemData.descricao;
         $item("#textPontosNecessariosRecompensa").text = String(itemData.pontosNecessarios);
+        $item("#textPontosTotais").text = itemData.pontosTotais != null ? String(itemData.pontosTotais) : "—";
         $item("#textCodigoDescontoRecompensa").text = itemData.codigoDesconto || "—";
         $item("#tipoResgate").text = itemData.tipoResgate;
 
@@ -99,10 +101,10 @@ async function atualizarRepeaterRecompensas() {
             $w("#inputTitulo").value = itemData.userId;
             $w("#inputDescricao").value = itemData.descricao;
             $w("#inputPontos").value = String(itemData.pontosNecessarios);
+            $w("#inputPontosTotais").value = itemData.pontosTotais != null ? String(itemData.pontosTotais) : "";
             $w("#inputCupom").value = itemData.codigoDesconto || "";
             $w("#dropdownTipoResgate").value = itemData.tipoResgate || "cupom";
             $w("#checkboxAtivo").checked = !!itemData.ativo;
-
             $w("#boxEdicaoRecompensa").expand();
         });
 
@@ -121,6 +123,7 @@ function limparCamposFormulario() {
     $w("#inputTitulo").value = "";
     $w("#inputDescricao").value = "";
     $w("#inputPontos").value = "";
+    $w("#inputPontosTotais").value = "";
     $w("#inputCupom").value = "";
     $w("#dropdownTipoResgate").value = "cupom";
     $w("#checkboxAtivo").checked = true;
