@@ -12,11 +12,11 @@ export async function checkAndGrantEbooksAccess(userId) {
         if (res.items.length === 0) return;
 
         const progresso = res.items[0];
-        const pontos = progresso.pontosAtuais || 0;
+        const pontosTotais = progresso.pontosTotaisAcumulados || 0;
 
-        if (pontos >= 200 && !progresso.accessGranted) {
+        if (pontosTotais >= 200 && !progresso.accessGranted) {
             // atribui a função ao membro
-            await authorization.assignRole("AcessoEbooks", userId, { suppressAuth: true });
+            await authorization.roles.assignRole("AcessoEbooks", userId, { suppressAuth: true });
             console.log(`Função "AcessoEbooks" atribuída ao usuário ${userId}`);
 
             // marca para evitar reatribuição
