@@ -1,0 +1,9 @@
+import { simulaCompraPaga } from 'backend/testSimulacao.jsw';
+
+$w.onReady(function () {
+  $w('#botaoSimular').onClick(() => {
+    simulaCompraPaga("10d4c395-27ef-4add-951a-67a80d3c0ca1")
+      .then(msg => console.log("✅", msg))
+      .catch(err => console.error("❌", err));
+  });
+});
