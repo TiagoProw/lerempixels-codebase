@@ -49,6 +49,55 @@ export async function wixStores_onOrderPaid(event) {
   } catch (err) {
     console.error("Erro no processamento de bônus:", err);
   }
+
+  // ---------------------------------------------------
+  // A CADA R$1 = 1 PIXEL POINT
+  // ---------------------------------------------------
+  try {
+    const userId = event.buyerInfo?.memberId;
+
+    if (!userId) {
+      console.warn("Pedido pago sem userId (usuário não logado ou não é membro).");
+      return;
+    }
+
+    // O total do pedido já vem no evento
+    const valorPedido = event.totals?.total;
+    const pontosGanhos = Math.floor(valorPedido); // 1 ponto por R$1
+
+    // Buscar progresso do usuário
+    let [progresso] = await wixData.query("ProgressoUsuarios")
+      .eq("userId", userId)
+      .find()
+      .then(res => res.items);
+
+    if (!progresso) {
+      progresso = {
+        userId,
+        pontosAtuais: 0,
+        pontosTotaisAcumulados: 0,
+        totalCompras: 0,
+        bonusRecebido: false
+      };
+    }
+
+    // Atualizar pontos
+    progresso.pontosAtuais = (progresso.pontosAtuais || 0) + pontosGanhos;
+    progresso.pontosTotaisAcumulados = (progresso.pontosTotaisAcumulados || 0) + pontosGanhos;
+    progresso.totalCompras = (progresso.totalCompras || 0) + 1;
+
+    // Salvar no banco
+    if (progresso._id) {
+      await wixData.update("ProgressoUsuarios", progresso);
+    } else {
+      await wixData.insert("ProgressoUsuarios", progresso);
+    }
+
+    console.log(`+${pontosGanhos} pontos adicionados para o usuário ${userId}`);
+
+  } catch (err) {
+    console.error("Erro ao dar pontos por valor de compra:", err);
+  }
 }
 
 async function resetBonusMensal() {
