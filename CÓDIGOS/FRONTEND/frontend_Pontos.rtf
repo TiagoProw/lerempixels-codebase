@@ -1,1 +1,10 @@
-{\rtf1}
+// frontend/Pontos
+
+$w.onReady(async function () {
+    $w('#btnInfo').onMouseIn((event) => {
+        $w('#caixaInfo1').show();
+    })
+    $w('#btnInfo').onMouseOut((event) => {
+        $w('#caixaInfo1').hide();
+    })
+});
