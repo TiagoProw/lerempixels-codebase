@@ -44,7 +44,6 @@ export async function wixStores_onOrderPaid(event) {
       };
       await wixData.insert("ProgressoUsuarios", novoRegistro);
       await checkAndGrantEbooksAccess(userId); // ✅ chamada da função após insert
-
     }
   } catch (err) {
     console.error("Erro no processamento de bônus:", err);
@@ -128,5 +127,50 @@ async function resetBonusMensal() {
     console.log(`Reset mensal completo — ${registrosAtualizados} registros atualizados.`);
   } catch (err) {
     console.error("Erro no reset mensal:", err);
+  }
+}
+  // ---------------------------------------------------
+  // REGISTRO NO SITE = 50 PIXEL POINTS
+  // ---------------------------------------------------
+export async function wixMembers_onMemberCreated(event) {
+  try {
+    const userId = event.member?._id;
+
+    if (!userId) {
+      console.warn("Registro de membro sem ID detectado.");
+      return;
+    }
+
+    // Buscar se já existe progresso
+    let [progresso] = await wixData.query("ProgressoUsuarios")
+      .eq("userId", userId)
+      .find()
+      .then(res => res.items);
+
+    if (!progresso) {
+      progresso = {
+        userId,
+        pontosAtuais: 0,
+        pontosTotaisAcumulados: 0,
+        totalCompras: 0,
+        bonusRecebido: false
+      };
+    }
+
+    // Dar 50 pontos no registro
+    progresso.pontosAtuais = (progresso.pontosAtuais || 0) + 50;
+    progresso.pontosTotaisAcumulados = (progresso.pontosTotaisAcumulados || 0) + 50;
+
+    // Salvar progresso atualizado
+    if (progresso._id) {
+      await wixData.update("ProgressoUsuarios", progresso);
+    } else {
+      await wixData.insert("ProgressoUsuarios", progresso);
+    }
+
+    console.log(`+50 pontos adicionados para novo usuário ${userId}`);
+
+  } catch (err) {
+    console.error("Erro ao dar pontos no registro:", err);
   }
 }
