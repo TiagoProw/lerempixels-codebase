@@ -16,3 +16,17 @@ export async function simulaCompraPaga(orderId) {
   await wixStores_onOrderPaid({ buyerInfo: order.buyerInfo });
   return `Simulação feita para orderId: ${orderId}`;
 }
+
+/**
+ * Simula uma compra paga para testes
+ * @param {string} userId - ID do membro
+ * @param {number} valor - Valor do pedido em R$
+ */
+export async function simularCompra(userId, valor) {
+  const fakeEvent = {
+    buyerInfo: { memberId: userId },
+    totals: { total: valor }
+  };
+
+  return await wixStores_onOrderPaid(fakeEvent);
+}
