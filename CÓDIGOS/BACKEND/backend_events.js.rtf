@@ -135,51 +135,46 @@ async function resetBonusMensal() {
 // ---------------------------------------------------
 export async function wixMembers_onMemberCreated(event) {
   try {
-    // o ID vem em event.entity._id (fallbacks por garantia)
-    const memberId =
-      event?.entity?._id ||
-      event?.member?._id ||
-      event?.data?._id ||
-      event?.data?.memberId;
-
+    const memberId = event?.entity?._id || event?.member?._id;
     if (!memberId) {
       console.warn("Evento de cadastro sem memberId", event);
       return;
     }
 
-    // busca progresso atual (se existir)
+    const hoje = new Date();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const ano = hoje.getFullYear();
+    const mesAnoAtual = `${mes}/${ano}`;
+
+    // busca registro do mês atual
     const { items } = await wixData.query("ProgressoUsuarios")
       .eq("userId", memberId)
+      .eq("mesAno", mesAnoAtual)
       .limit(1)
       .find();
 
-    const doc = items[0];
+    let registro = items[0];
 
-    // base para upsert
-    const base = doc ? { ...doc } : {
-      userId: memberId,
-      pontosAtuais: 0,
-      pontosTotaisAcumulados: 0,
-      totalCompras: 0,
-      bonusCadastroRecebido: false // novo flag para não duplicar
-    };
-
-    // evita duplicidade
-    if (base.bonusCadastroRecebido) {
-      console.log(`Bônus de cadastro já concedido para ${memberId}`);
-      return;
-    }
-
-    // concede +50
-    base.pontosAtuais = (base.pontosAtuais || 0) + 50;
-    base.pontosTotaisAcumulados = (base.pontosTotaisAcumulados || 0) + 50;
-    base.bonusCadastroRecebido = true;
-
-    // salva (update se já existia, senão insert)
-    if (base._id) {
-      await wixData.update("ProgressoUsuarios", base);
+    if (registro) {
+      if (registro.bonusCadastroRecebido) {
+        console.log(`Bônus de cadastro já concedido para ${memberId}`);
+        return;
+      }
+      registro.pontosAtuais = (registro.pontosAtuais || 0) + 50;
+      registro.pontosTotaisAcumulados = (registro.pontosTotaisAcumulados || 0) + 50;
+      registro.bonusCadastroRecebido = true;
+      await wixData.update("ProgressoUsuarios", registro);
     } else {
-      await wixData.insert("ProgressoUsuarios", base);
+      // cria novo registro do mês
+      registro = {
+        userId: memberId,
+        mesAno: mesAnoAtual,
+        pontosAtuais: 50,
+        pontosTotaisAcumulados: 50,
+        totalCompras: 0,
+        bonusCadastroRecebido: true
+      };
+      await wixData.insert("ProgressoUsuarios", registro);
     }
 
     console.log(`+50 Pixel Points no cadastro para ${memberId}`);
