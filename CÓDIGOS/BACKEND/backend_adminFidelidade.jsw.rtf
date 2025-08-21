@@ -1,5 +1,6 @@
 // backend/adminFidelidade.jsw
 import wixData from 'wix-data';
+import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
 
 /* ---------- LISTAR MEMBROS ---------- */
 export async function getDadosUsuariosFidelidade(mesAno) {
@@ -14,9 +15,18 @@ export async function getDadosUsuariosFidelidade(mesAno) {
 
     const usuarios = members.map((member) => {
         const userId = member._id;
-        const itemProgresso = progresso.find(
-            p => p.userId === userId && (mesAno === "todos" || p.mesAno === mesAno)
-        );
+        let itemProgresso;
+        if (mesAno === "todos") {
+            // pega sempre o mais recente do usuário
+            const historico = progresso.filter(p => p.userId === userId);
+            if (historico.length) {
+                itemProgresso = historico.sort((a, b) =>
+                    new Date(b.dataRegistro).getTime() - new Date(a.dataRegistro).getTime()
+                )[0];
+            }
+        } else {
+            itemProgresso = progresso.find(p => p.userId === userId && p.mesAno === mesAno);
+        }
 
         const nome = `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Sem nome';
         const email = member.email || 'Sem e-mail';
@@ -49,7 +59,9 @@ export async function addPontoManual(userId, mesAno, quantidade) {
         const item = items[0];
         item.pontosAtuais += quantidade;
         item.pontosTotaisAcumulados = (item.pontosTotaisAcumulados || 0) + quantidade;
-        return wixData.update('ProgressoUsuarios', item);
+        await wixData.update("ProgressoUsuarios", item);
+        console.log("✅ Tentando chamar checkAndGrantEbooksAccess para userId:", userId);
+        await checkAndGrantEbooksAccess(userId); 
     } else {
         const novo = {
             userId,
@@ -59,6 +71,7 @@ export async function addPontoManual(userId, mesAno, quantidade) {
             totalCompras: 0,
             dataRegistro: new Date()
         };
+        await checkAndGrantEbooksAccess(userId); // ✅ verifica se precisa liberar acesso
         return wixData.insert('ProgressoUsuarios', novo);
     }
 }
