@@ -129,48 +129,62 @@ async function resetBonusMensal() {
     console.error("Erro no reset mensal:", err);
   }
 }
-  // ---------------------------------------------------
-  // REGISTRO NO SITE = 50 PIXEL POINTS
-  // ---------------------------------------------------
+
+// ---------------------------------------------------
+// REGISTRO NO SITE = 50 PIXEL POINTS
+// ---------------------------------------------------
 export async function wixMembers_onMemberCreated(event) {
   try {
-    const userId = event.member?._id;
+    // o ID vem em event.entity._id (fallbacks por garantia)
+    const memberId =
+      event?.entity?._id ||
+      event?.member?._id ||
+      event?.data?._id ||
+      event?.data?.memberId;
 
-    if (!userId) {
-      console.warn("Registro de membro sem ID detectado.");
+    if (!memberId) {
+      console.warn("Evento de cadastro sem memberId", event);
       return;
     }
 
-    // Buscar se já existe progresso
-    let [progresso] = await wixData.query("ProgressoUsuarios")
-      .eq("userId", userId)
-      .find()
-      .then(res => res.items);
+    // busca progresso atual (se existir)
+    const { items } = await wixData.query("ProgressoUsuarios")
+      .eq("userId", memberId)
+      .limit(1)
+      .find();
 
-    if (!progresso) {
-      progresso = {
-        userId,
-        pontosAtuais: 0,
-        pontosTotaisAcumulados: 0,
-        totalCompras: 0,
-        bonusRecebido: false
-      };
+    const doc = items[0];
+
+    // base para upsert
+    const base = doc ? { ...doc } : {
+      userId: memberId,
+      pontosAtuais: 0,
+      pontosTotaisAcumulados: 0,
+      totalCompras: 0,
+      bonusRecebido: false,        // seu bônus mensal já existente
+      bonusCadastroRecebido: false // novo flag para não duplicar
+    };
+
+    // evita duplicidade
+    if (base.bonusCadastroRecebido) {
+      console.log(`Bônus de cadastro já concedido para ${memberId}`);
+      return;
     }
 
-    // Dar 50 pontos no registro
-    progresso.pontosAtuais = (progresso.pontosAtuais || 0) + 50;
-    progresso.pontosTotaisAcumulados = (progresso.pontosTotaisAcumulados || 0) + 50;
+    // concede +50
+    base.pontosAtuais = (base.pontosAtuais || 0) + 50;
+    base.pontosTotaisAcumulados = (base.pontosTotaisAcumulados || 0) + 50;
+    base.bonusCadastroRecebido = true;
 
-    // Salvar progresso atualizado
-    if (progresso._id) {
-      await wixData.update("ProgressoUsuarios", progresso);
+    // salva (update se já existia, senão insert)
+    if (base._id) {
+      await wixData.update("ProgressoUsuarios", base);
     } else {
-      await wixData.insert("ProgressoUsuarios", progresso);
+      await wixData.insert("ProgressoUsuarios", base);
     }
 
-    console.log(`+50 pontos adicionados para novo usuário ${userId}`);
-
+    console.log(`+50 Pixel Points no cadastro para ${memberId}`);
   } catch (err) {
-    console.error("Erro ao dar pontos no registro:", err);
+    console.error("Erro no bônus de cadastro:", err);
   }
 }
