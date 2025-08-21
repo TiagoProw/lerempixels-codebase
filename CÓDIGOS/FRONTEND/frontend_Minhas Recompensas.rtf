@@ -214,8 +214,18 @@ $w.onReady(async function () {
 
                 try {
                     const resultado = await resgatarCupom(valorReais);
+
+                    // Atualiza os pontos do usuário
+                    await atualizarPontosUsuario();
+
+                    // Atualiza cupons disponíveis do repeater
+                    const contagemAtualizada = await obterQuantidadesDeCuponsDisponiveis();
+                    $item('#textRestamCupom').text = `${contagemAtualizada[valorReais]}/10 resgates`;
+
+                    // Atualiza cupons do usuário
+                    await carregarCuponsUsuario();
+
                     $item('#btnResgatarCupom').label = `Resgatado!`;
-                    await atualizarTudo();
                 } catch (erro) {
                     console.error("Erro ao resgatar cupom:", erro);
                     $item('#btnResgatarCupom').label = "Erro ao resgatar";
