@@ -21,10 +21,18 @@ $w.onReady(async function () {
     });
   }
 
-    $w('#btnInfo').onMouseIn((event) => {
+    $w('#btnInfo1').onMouseIn((event) => {
         $w('#caixaInfo1').show();
     })
-    $w('#btnInfo').onMouseOut((event) => {
+    $w('#btnInfo1').onMouseOut((event) => {
         $w('#caixaInfo1').hide();
     })
+
+    $w('#btnInfo2').onMouseIn((event) => {
+        $w('#caixaInfo2').show();
+    })
+    $w('#btnInfo2').onMouseOut((event) => {
+        $w('#caixaInfo2').hide();
+    })
+
 });
