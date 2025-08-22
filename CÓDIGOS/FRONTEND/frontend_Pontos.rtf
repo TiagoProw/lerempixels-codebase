@@ -1,6 +1,26 @@
 // frontend/Pontos
+import wixUsers from 'wix-users';
+import wixLocation from 'wix-location';
+import { currentMember } from 'wix-members-frontend';
 
 $w.onReady(async function () {
+    const member = await currentMember.getMember();
+
+  if (member) {
+    // Usuário logado
+    $w('#btnLoginRecompensa').label = "Ver Recompensas";
+    $w('#btnLoginRecompensa').onClick(() => {
+      wixLocation.to("/minhas-recompensas"); // redireciona para recompensas
+    });
+  } else {
+    // Usuário não logado
+    $w('#btnLoginRecompensa').label = "Fazer login";
+    $w('#btnLoginRecompensa').onClick(() => {
+      wixUsers.promptLogin()
+        .then(() => wixLocation.to("/minhas-recompensas"));
+    });
+  }
+
     $w('#btnInfo').onMouseIn((event) => {
         $w('#caixaInfo1').show();
     })
