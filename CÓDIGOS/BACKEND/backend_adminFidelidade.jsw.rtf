@@ -89,6 +89,7 @@ export async function removePontoManual(userId, mesAno, quantidade) {
         // não mexe em pontosTotaisAcumulados
         return wixData.update('ProgressoUsuarios', item);
     }
+    return { pontosGanhos: 0 };
 }
 
 /* ---------- RECOMPENSAS ---------- */

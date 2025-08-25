@@ -29,7 +29,6 @@ export async function wixStores_onOrderPaid(event) {
         registro.pontosTotaisAcumulados = (registro.pontosTotaisAcumulados || 0) + 25;
         registro.bonusConcedido = true;
         console.log(`Bônus concedido ao usuário ${userId}`);
-        return { pontosGanhos: 25 };
       }
       await wixData.update("ProgressoUsuarios", registro);
       console.log("✅ Tentando chamar checkAndGrantEbooksAccess para userId no events:", userId);
@@ -46,6 +45,7 @@ export async function wixStores_onOrderPaid(event) {
       await wixData.insert("ProgressoUsuarios", novoRegistro);
       await checkAndGrantEbooksAccess(userId); // ✅ chamada da função após insert
     }
+    return { pontosGanhos: 25 };
   } catch (err) {
     console.error("Erro no processamento de bônus:", err);
   }
