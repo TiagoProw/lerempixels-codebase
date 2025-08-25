@@ -1,4 +1,5 @@
 // backend/events.js
+import { darPontosComNotificacao } from 'public/darPontosComNotificacao.js';
 import wixData from "wix-data";
 import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
 
@@ -45,6 +46,7 @@ export async function wixStores_onOrderPaid(event) {
       await wixData.insert("ProgressoUsuarios", novoRegistro);
       await checkAndGrantEbooksAccess(userId); // ✅ chamada da função após insert
     }
+    await darPontosComNotificacao(wixStores_onOrderPaid, event);
     return { pontosGanhos: 25 };
   } catch (err) {
     console.error("Erro no processamento de bônus:", err);
@@ -94,6 +96,7 @@ export async function wixStores_onOrderPaid(event) {
     }
 
     console.log(`+${pontosGanhos} pontos adicionados para o usuário ${userId}`);
+    await darPontosComNotificacao(wixStores_onOrderPaid, event);
     return { pontosGanhos: pontosGanhos };
 
   } catch (err) {
@@ -180,6 +183,7 @@ export async function wixMembers_onMemberCreated(event) {
     }
 
     console.log(`+50 Pixel Points no cadastro para ${memberId}`);
+    await darPontosComNotificacao(wixMembers_onMemberCreated, memberId);
     return { pontosGanhos: 50 };
     
   } catch (err) {
