@@ -1,0 +1,19 @@
+import { session } from 'wix-storage';
+
+$w.onReady(() => {
+  // Checa se existe notificação salva na sessão
+  const notify = session.getItem("novaNotificacao");
+  if (notify) {
+    mostrarNotificacao(notify);
+    session.removeItem("novaNotificacao");
+  }
+});
+
+function mostrarNotificacao(mensagem) {
+  $w('#boxNotificacao').show("fade", { duration: 400 });
+  $w('#textNotificacao').text = mensagem;
+
+  setTimeout(() => {
+    $w('#boxNotificacao').hide("fade", { duration: 400 });
+  }, 3000); // some após 3s
+}
