@@ -29,6 +29,7 @@ export async function wixStores_onOrderPaid(event) {
         registro.pontosTotaisAcumulados = (registro.pontosTotaisAcumulados || 0) + 25;
         registro.bonusConcedido = true;
         console.log(`Bônus concedido ao usuário ${userId}`);
+        return { pontosGanhos: 25 };
       }
       await wixData.update("ProgressoUsuarios", registro);
       console.log("✅ Tentando chamar checkAndGrantEbooksAccess para userId no events:", userId);
@@ -93,6 +94,7 @@ export async function wixStores_onOrderPaid(event) {
     }
 
     console.log(`+${pontosGanhos} pontos adicionados para o usuário ${userId}`);
+    return { pontosGanhos: pontosGanhos };
 
   } catch (err) {
     console.error("Erro ao dar pontos por valor de compra:", err);
@@ -178,6 +180,8 @@ export async function wixMembers_onMemberCreated(event) {
     }
 
     console.log(`+50 Pixel Points no cadastro para ${memberId}`);
+    return { pontosGanhos: 50 };
+    
   } catch (err) {
     console.error("Erro no bônus de cadastro:", err);
   }

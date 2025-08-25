@@ -74,6 +74,7 @@ export async function addPontoManual(userId, mesAno, quantidade) {
         await checkAndGrantEbooksAccess(userId); // ✅ verifica se precisa liberar acesso
         return wixData.insert('ProgressoUsuarios', novo);
     }
+    return { pontosGanhos: quantidade };
 }
 
 export async function removePontoManual(userId, mesAno, quantidade) {
