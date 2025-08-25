@@ -54,7 +54,7 @@ async function checkPontosUsuario() {
 
         if (pontosAtuais > ultimoSaldoPontos) {
             const pontosGanhos = pontosAtuais - ultimoSaldoPontos;
-            mostrarNotificacao(`+${pontosGanhos} Pixel Points adicionados!`);
+            mostrarNotificacao(`+${pontosGanhos} Pixel Points!`);
         }
 
         // atualiza o saldo armazenado
@@ -70,8 +70,19 @@ function mostrarNotificacao(mensagem) {
     try {
         if ($w('#boxNotificacao') && $w('#textNotificacao')) {
             $w('#textNotificacao').text = mensagem;
-            $w('#boxNotificacao').show("fade", { duration: 400 });
-            setTimeout(() => $w('#boxNotificacao').hide("fade", { duration: 400 }), 3000);
+            $w('#boxNotificacao').show("slide", {
+                duration: 500,
+                direction: "left"
+            });
+
+            setTimeout(() => {
+                // Some de novo com slide para a esquerda
+                $w('#boxNotificacao').hide("slide", {
+                duration: 500,
+                direction: "left"
+                });
+            }, 3000);
+            
         } else {
             console.warn("mostrarNotificacao: #boxNotificacao ou #textNotificacao não encontrados no masterPage.");
         }
