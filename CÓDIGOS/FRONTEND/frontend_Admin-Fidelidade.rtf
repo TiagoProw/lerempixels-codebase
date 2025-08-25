@@ -68,11 +68,10 @@ async function atualizarRepeaterUsuarios() {
         $item('#textPontosMes').text = String(itemData.pontosMes);
         $item('#textTotalPontos').text = String(itemData.pontosTotaisAcumulados);
 
-        $item('#btnAddPonto').onClick(async () => {
-            const quantidade = Number($item('#inputPontosManual').value || 1);
-            await addPontoManual(itemData.userId, itemData.mesAno, quantidade);
-            await atualizarRepeaterUsuarios();
-        });
+        $item('#btnAddPonto').onClick(async () => { 
+            const quantidade = Number($item('#inputPontosManual').value || 1); 
+            await addPontoManual(itemData.userId, itemData.mesAno, quantidade);  
+            await atualizarRepeaterUsuarios(); });
 
         $item('#btnRemovePonto').onClick(async () => {
             const quantidade = Number($item('#inputPontosManual').value || 1);
@@ -94,7 +93,6 @@ async function atualizarRepeaterRecompensas() {
         $item("#textPontosTotais").text = itemData.pontosTotais != null ? String(itemData.pontosTotais) : "—";
         $item("#textCodigoDescontoRecompensa").text = itemData.codigoDesconto || "—";
         $item("#tipoResgate").text = itemData.tipoResgate;
-
 
         $item("#btnEditarRecompensa").onClick(() => {
             recompensaEditando = itemData;

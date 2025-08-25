@@ -1,5 +1,4 @@
 // backend/adminFidelidade.jsw
-import { darPontosComNotificacao } from 'public/darPontosComNotificacao.js';
 import wixData from 'wix-data';
 import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
 
@@ -62,7 +61,8 @@ export async function addPontoManual(userId, mesAno, quantidade) {
         item.pontosTotaisAcumulados = (item.pontosTotaisAcumulados || 0) + quantidade;
         await wixData.update("ProgressoUsuarios", item);
         console.log("✅ Tentando chamar checkAndGrantEbooksAccess para userId:", userId);
-        await checkAndGrantEbooksAccess(userId); 
+        await checkAndGrantEbooksAccess(userId);
+        return { pontosGanhos: quantidade };
     } else {
         const novo = {
             userId,
@@ -72,11 +72,11 @@ export async function addPontoManual(userId, mesAno, quantidade) {
             totalCompras: 0,
             dataRegistro: new Date()
         };
-        await checkAndGrantEbooksAccess(userId); // ✅ verifica se precisa liberar acesso
-        return wixData.insert('ProgressoUsuarios', novo);
+        const inserted = await wixData.insert('ProgressoUsuarios', novo);
+        await checkAndGrantEbooksAccess(userId); // verifica se precisa liberar acesso
+        // Retornamos objeto padrão com pontosGanhos e, opcionalmente, o novo registro
+        return { pontosGanhos: quantidade, novoRegistro: inserted };
     }
-    await darPontosComNotificacao(addPontoManual, userId);
-    return { pontosGanhos: quantidade };
 }
 
 export async function removePontoManual(userId, mesAno, quantidade) {

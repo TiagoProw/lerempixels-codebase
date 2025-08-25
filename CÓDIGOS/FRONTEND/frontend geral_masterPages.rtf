@@ -1,20 +1,81 @@
-//masterPage.js
-import { session } from 'wix-storage';
+// masterPage.js
+import wixData from 'wix-data';
+import wixUsers from 'wix-users';
+
+let ultimoSaldoPontos = 0; // armazena o saldo anterior
+const POLLING_INTERVAL_MS = 5000; // intervalo do polling em ms (5 segundos)
 
 $w.onReady(() => {
-  // Checa se existe notificação salva na sessão
-  const notify = session.getItem("novaNotificacao");
-  if (notify) {
-    mostrarNotificacao(notify);
-    session.removeItem("novaNotificacao");
-  }
+    const user = wixUsers.currentUser;
+
+    if (!user.loggedIn) return; // só para membros logados
+
+    // consulta inicial para definir o saldo atual
+    initSaldoPontos();
+
+    // inicia o polling para verificar novos pontos
+    setInterval(checkPontosUsuario, POLLING_INTERVAL_MS);
 });
 
-function mostrarNotificacao(mensagem) {
-  $w('#boxNotificacao').show("fade", { duration: 400 });
-  $w('#textNotificacao').text = mensagem;
+// consulta inicial do saldo atual
+async function initSaldoPontos() {
+    const user = wixUsers.currentUser;
+    try {
+        const result = await wixData.query("ProgressoUsuarios")
+            .eq("userId", user.id)
+            .descending("dataRegistro") // pega o registro mais recente
+            .limit(1)
+            .find();
 
-  setTimeout(() => {
-    $w('#boxNotificacao').hide("fade", { duration: 400 });
-  }, 3000); // some após 3s
+        if (result.items.length > 0) {
+            ultimoSaldoPontos = result.items[0].pontosAtuais || 0;
+        }
+    } catch (err) {
+        console.error("Erro ao inicializar saldo de pontos:", err);
+    }
+}
+
+// função que verifica se houve aumento de pontos
+async function checkPontosUsuario() {
+    const user = wixUsers.currentUser;
+    if (!user.loggedIn) return;
+
+    try {
+        const result = await wixData.query("ProgressoUsuarios")
+            .eq("userId", user.id)
+            .descending("dataRegistro")
+            .limit(1)
+            .find();
+
+        if (result.items.length === 0) return;
+
+        const item = result.items[0];
+        const pontosAtuais = item.pontosAtuais || 0;
+
+        if (pontosAtuais > ultimoSaldoPontos) {
+            const pontosGanhos = pontosAtuais - ultimoSaldoPontos;
+            mostrarNotificacao(`+${pontosGanhos} Pixel Points adicionados!`);
+        }
+
+        // atualiza o saldo armazenado
+        ultimoSaldoPontos = pontosAtuais;
+
+    } catch (err) {
+        console.error("Erro ao checar pontos do usuário:", err);
+    }
+}
+
+// função que mostra a notificação
+function mostrarNotificacao(mensagem) {
+    try {
+        if ($w('#boxNotificacao') && $w('#textNotificacao')) {
+            $w('#textNotificacao').text = mensagem;
+            $w('#boxNotificacao').show("fade", { duration: 400 });
+            setTimeout(() => $w('#boxNotificacao').hide("fade", { duration: 400 }), 3000);
+        } else {
+            console.warn("mostrarNotificacao: #boxNotificacao ou #textNotificacao não encontrados no masterPage.");
+        }
+    } catch (e) {
+        console.error("mostrarNotificacao erro:", e);
+    }
 }
