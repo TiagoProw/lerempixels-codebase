@@ -6,20 +6,20 @@ import { currentMember } from 'wix-members-frontend';
 $w.onReady(async function () {
     const member = await currentMember.getMember();
 
-  if (member) {
-    // Usuário logado
-    $w('#btnLoginRecompensa').label = "Ver Recompensas";
-    $w('#btnLoginRecompensa').onClick(() => {
-      wixLocation.to("/minhas-recompensas"); // redireciona para recompensas
-    });
-  } else {
-    // Usuário não logado
-    $w('#btnLoginRecompensa').label = "Fazer login";
-    $w('#btnLoginRecompensa').onClick(() => {
-      wixUsers.promptLogin()
-        .then(() => wixLocation.to("/minhas-recompensas"));
-    });
-  }
+    if (member) {
+        // Usuário logado
+        $w('#btnLoginRecompensa').label = "Ver Recompensas";
+        $w('#btnLoginRecompensa').onClick(() => {
+            wixLocation.to("/minhas-recompensas"); // redireciona para recompensas
+        });
+    } else {
+        // Usuário não logado
+        $w('#btnLoginRecompensa').label = "Fazer login";
+        $w('#btnLoginRecompensa').onClick(() => {
+            wixUsers.promptLogin()
+                .then(() => wixLocation.to("/minhas-recompensas"));
+        });
+    }
 
     $w('#btnInfo1').onMouseIn((event) => {
         $w('#caixaInfo1').show();
@@ -34,5 +34,13 @@ $w.onReady(async function () {
     $w('#btnInfo2').onMouseOut((event) => {
         $w('#caixaInfo2').hide();
     })
-
 });
+
+//PARA MOBILE
+$w('#mobileBtnInfo1').onClick((event) => {
+    $w('#mobileCaixaInfo1').show();
+    setTimeout(() => {
+        $w('#mobileCaixaInfo1').hide();
+    }, 2000);
+})
+

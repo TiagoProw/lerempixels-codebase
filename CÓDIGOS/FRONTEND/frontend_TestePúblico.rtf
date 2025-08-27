@@ -1,3 +1,4 @@
+// frontend/TestePúblico
 import { simulaCompraPaga } from 'backend/testSimulacao.jsw';
 import { simularCompra } from 'backend/testSimulacao';
 
@@ -6,7 +7,7 @@ import { simularCompra } from 'backend/testSimulacao';
 // ---------------------------------------------------
 $w.onReady(function () {
   $w('#botaoSimular').onClick(() => {
-    simulaCompraPaga("10d4c395-27ef-4add-951a-67a80d3c0ca1")
+    simulaCompraPaga("17040e12-a4c0-462e-b9ac-9437317a8ea1")
       .then(msg => console.log("✅", msg))
       .catch(err => console.error("❌", err));
   });

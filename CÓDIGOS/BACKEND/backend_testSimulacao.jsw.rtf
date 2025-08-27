@@ -1,6 +1,6 @@
 // backend/testSimulacao.jsw
 import wixData from 'wix-data';
-import { wixStores_onOrderPaid } from 'backend/events.js';
+import { wixStores_onOrderPaid, wixStores_onOrderPaid_money } from 'backend/events';
 
 export async function simulaCompraPaga(orderId) {
   const result = await wixData.query('Stores/Orders')
@@ -28,5 +28,5 @@ export async function simularCompra(userId, valor) {
     totals: { total: valor }
   };
 
-  return await wixStores_onOrderPaid(fakeEvent);
+  return await wixStores_onOrderPaid_money(fakeEvent);
 }
