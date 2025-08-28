@@ -26,21 +26,18 @@ jobs:
           python3 - <<'PY'
           import subprocess, json
           files = subprocess.check_output(['git','ls-files']).decode().splitlines()
-          repo = "TiagoProw/lerempixels-codebase"  # <--- ajuste se o repo mudar
+          repo = "TiagoProw/lerempixels-codebase"
           branch = "main"
           out = []
           for f in files:
               out.append({"path": f, "raw_url": f"https://raw.githubusercontent.com/{repo}/{branch}/{f}"})
           open('public/file-index.json','w',encoding='utf-8').write(json.dumps(out,indent=2,ensure_ascii=False))
           PY
-          
-      - name: Download a Build Artifact
-        uses: actions/download-artifact@v4.0.0
-        
+
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v4.0.0
         with:
           path: ./public
-      
+
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4.0.0
