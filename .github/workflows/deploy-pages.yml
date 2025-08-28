@@ -31,7 +31,7 @@ jobs:
           out = []
           for f in files:
               out.append({"path": f, "raw_url": f"https://raw.githubusercontent.com/{repo}/{branch}/{f}"})
-            open('public/file-index.json','w',encoding='utf-8').write(json.dumps(out,indent=2,ensure_ascii=False))
+          open('public/file-index.json','w',encoding='utf-8').write(json.dumps(out,indent=2,ensure_ascii=False))
           PY
           
       - name: Download a Build Artifact
