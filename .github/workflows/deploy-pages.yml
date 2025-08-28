@@ -23,12 +23,15 @@ jobs:
 
       - name: Generate file-index.json
         run: |
-          python3 -c "import subprocess, json, os
+          python3 - <<EOF
+import subprocess, json
 files = subprocess.check_output(['git','ls-files']).decode().splitlines()
-repo = 'TiagoProw/lerempixels-codebase'
-branch = 'main'
-out = [{'path': f, 'raw_url': f'https://raw.githubusercontent.com/{repo}/{branch}/{f}'} for f in files]
-open('public/file-index.json','w', encoding='utf-8').write(json.dumps(out, indent=2, ensure_ascii=False))"
+repo = "TiagoProw/lerempixels-codebase"
+branch = "main"
+out = [{"path": f, "raw_url": f"https://raw.githubusercontent.com/{repo}/{branch}/{f}"} for f in files]
+with open('public/file-index.json','w', encoding='utf-8') as f:
+    json.dump(out, f, indent=2, ensure_ascii=False)
+EOF
 
       - name: Upload and deploy to GitHub Pages
         uses: actions/deploy-pages@v1
