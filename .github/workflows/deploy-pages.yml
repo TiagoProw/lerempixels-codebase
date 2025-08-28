@@ -26,7 +26,7 @@ jobs:
           python3 - <<'PY'
           import subprocess, json
           files = subprocess.check_output(['git','ls-files']).decode().splitlines()
-          repo = "TiagoProw/lerempixels-codebase"  # <--- ajuste se o repo mudar
+          repo = "TiagoProw/lerempixels-codebase"
           branch = "main"
           out = []
           for f in files:
@@ -35,7 +35,7 @@ jobs:
           PY
 
       - name: Upload artifact for Pages
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v2
         with:
           path: ./public
 
