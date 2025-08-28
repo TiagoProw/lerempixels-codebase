@@ -23,16 +23,16 @@ jobs:
 
       - name: Build file-index.json (list files + raw URLs)
         run: |
-python3 - <<'PY'
-import subprocess, json
-files = subprocess.check_output(['git','ls-files']).decode().splitlines()
-repo = "TiagoProw/lerempixels-codebase"  # <--- ajuste se o repo mudar
-branch = "main"
-out = []
-for f in files:
-    out.append({"path": f, "raw_url": f"https://raw.githubusercontent.com/{repo}/{branch}/{f}"})
-open('public/file-index.json','w',encoding='utf-8').write(json.dumps(out,indent=2,ensure_ascii=False))
-PY
+          python3 - <<'PY'
+          import subprocess, json
+          files = subprocess.check_output(['git','ls-files']).decode().splitlines()
+          repo = "TiagoProw/lerempixels-codebase"  # <--- ajuste se o repo mudar
+          branch = "main"
+          out = []
+          for f in files:
+              out.append({"path": f, "raw_url": f"https://raw.githubusercontent.com/{repo}/{branch}/{f}"})
+          open('public/file-index.json','w',encoding='utf-8').write(json.dumps(out,indent=2,ensure_ascii=False))
+          PY
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v1
