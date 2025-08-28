@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Repo Files</title>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <h1>It works!</h1>
+  <h2>Files in this repo:</h2>
+  <ul id="file-list"></ul>
+  <script>
+    fetch('file-index.json')
+      .then(response => response.json())
+      .then(files => {
+        const list = document.getElementById('file-list');
+        files.forEach(file => {
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="${file.raw_url}" target="_blank">${file.path}</a>`;
+          list.appendChild(li);
+        });
+      })
+      .catch(err => {
+        document.getElementById('file-list').textContent = 'Could not load file list.';
+      });
+  </script>
+</body>
+</html>
