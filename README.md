@@ -1,7 +1,5 @@
 📌 Resumo Geral do Projeto – Pixel Points
 
-Olá chat, você irá me ajudar a melhorar, ajustar, automatizar... o meu site por meio das coleções CMS e códigos com o Wix Velo, e saiba que eu sou bem leigo em relação a códigos, então vou precisar que você sempre esteja acompanhando meu repositório no GitHub e seja claro e específico.
-
 👉 Site: https://lerempixels.com.br/
 
 👉 Repositório: https://github.com/TiagoProw/lerempixels-codebase
