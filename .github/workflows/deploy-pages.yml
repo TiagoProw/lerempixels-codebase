@@ -15,29 +15,18 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Create public copy (exclude github metadata)
+      - name: Prepare public folder
         run: |
           rm -rf public
           mkdir public
           rsync -av --exclude='.git' --exclude='.github' --exclude='node_modules' ./ public/
 
-      - name: Build file-index.json (list files + raw URLs)
+      - name: Generate file-index.json
         run: |
           python3 - <<'PY'
           import subprocess, json
           files = subprocess.check_output(['git','ls-files']).decode().splitlines()
           repo = "TiagoProw/lerempixels-codebase"
           branch = "main"
-          out = []
-          for f in files:
-              out.append({"path": f, "raw_url": f"https://raw.githubusercontent.com/{repo}/{branch}/{f}"})
-          open('public/file-index.json','w',encoding='utf-8').write(json.dumps(out,indent=2,ensure_ascii=False))
-          PY
-
-      - name: Upload artifact for Pages
-        uses: actions/upload-pages-artifact@v2
-        with:
-          path: ./public
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+          out = [{"path": f, "raw_url": f"https://raw.githubusercontent.com/{repo}/{branch}/{f}"} for f in files]
+          with open('public/file-index.json','w',encoding='utf-
