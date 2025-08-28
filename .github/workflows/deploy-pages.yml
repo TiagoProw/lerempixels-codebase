@@ -19,7 +19,15 @@ jobs:
         run: |
           rm -rf public
           mkdir public
-          rsync -av --exclude='.git' --exclude='.github' --exclude='node_modules' ./ public/
+          # Ignora pastas e arquivos desnecessários automaticamente
+          rsync -av \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            --exclude='build' \
+            --exclude='.venv' \
+            ./ public/
 
       - name: Generate file-index.json
         run: |
