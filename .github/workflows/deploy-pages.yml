@@ -23,10 +23,10 @@ jobs:
 
       - name: Build file-index.json (list files + raw URLs)
         run: |
-          python3 - <<'PY'
+python3 - <<'PY'
 import subprocess, json
 files = subprocess.check_output(['git','ls-files']).decode().splitlines()
-repo = "TiagoProw/lerempixels-codebase"   # <--- ajuste se o repo mudar
+repo = "TiagoProw/lerempixels-codebase"  # <--- ajuste se o repo mudar
 branch = "main"
 out = []
 for f in files:
