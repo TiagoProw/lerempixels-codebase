@@ -17,7 +17,7 @@ jobs:
 
       - name: Create public copy (exclude github metadata)
         run: |
-          rsync -av --exclude='.git' --exclude='.github' --exclude='node_modules' ./ public/
+          rsync -av --exclude='.git' --exclude='.github' --exclude='node_modules' --exclude='public' ./ public/
 
       - name: Build file-index.json (list files + raw URLs)
         run: |
