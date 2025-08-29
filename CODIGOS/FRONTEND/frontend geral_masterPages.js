@@ -3,7 +3,7 @@ import wixData from 'wix-data';
 import wixWindow from 'wix-window';
 import wixUsers from 'wix-users';
 
-const POLLING_INTERVAL_MS = 10000; // intervalo polling
+const POLLING_INTERVAL_MS = 50000; // intervalo polling
 const AGGREGATION_WINDOW_MS = 2000; // janela para agregar alterações rápidas
 
 let ultimoSaldoPontos = 0;

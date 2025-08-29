@@ -45,6 +45,7 @@ $w.onReady(async function () {
         }
 
         console.log("Pontos do usuário atualizados:", pontosUsuario, "Total compras:", totalComprasUsuario);
+
         $w('#textPontosUsuario').text = `${pontosUsuario}`;
     }
 
@@ -217,6 +218,7 @@ $w.onReady(async function () {
 
                     // Atualiza os pontos do usuário
                     await atualizarPontosUsuario();
+                    
 
                     // Atualiza cupons disponíveis do repeater
                     const contagemAtualizada = await obterQuantidadesDeCuponsDisponiveis();
