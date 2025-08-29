@@ -2,9 +2,9 @@
 
 👉 Site: https://lerempixels.com.br/
 
-👉 Repositório: https://github.com/TiagoProw/lerempixels-codebase
+👉 Repositório: https://tiagoprow.github.io/lerempixels-codebase/
 
-📖 O que já foi feito recentemente
+📖 O que já foi feito
 🔹 Refatorações e Correções
 
 Backend recompensas.jsw:
