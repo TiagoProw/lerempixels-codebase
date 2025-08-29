@@ -1,3 +1,3 @@
 ID: #confirmacao | Tipo: Janela
-  ? ID: #btnSim | Tipo: Button
-  ? ID: #btnNao | Tipo: Button
+	ID: #btnSim | Tipo: Button
+	ID: #btnNao | Tipo: Button
