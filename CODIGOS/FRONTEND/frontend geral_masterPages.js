@@ -1,9 +1,16 @@
 // masterPage.js
 import wixData from 'wix-data';
 import wixUsers from 'wix-users';
+import { currentMember } from 'wix-members-frontend';
 
-let ultimoSaldoPontos = 0; // armazena o saldo anterior
+// polling config
 const POLLING_INTERVAL_MS = 5000; // intervalo do polling em ms (5 segundos)
+const AGGREGATION_WINDOW_MS = 2500; // junta várias alterações rápidas em 2.5s
+
+// estado local
+let ultimoSaldoPontos = Number(localStorage.getItem('ultimoSaldoPontos') || 0);
+let aggregationTimer = null;
+let pendingDelta = 0;
 
 $w.onReady(() => {
     const user = wixUsers.currentUser;
@@ -55,6 +62,9 @@ async function checkPontosUsuario() {
         if (pontosAtuais > ultimoSaldoPontos) {
             const pontosGanhos = pontosAtuais - ultimoSaldoPontos;
             mostrarNotificacao(`+${pontosGanhos} Pixel Points!`);
+        } else if (pontosAtuais < ultimoSaldoPontos) {
+            const pontosPerdidos = ultimoSaldoPontos - pontosAtuais;
+            mostrarNotificacao(`-${pontosPerdidos} Pixel Points!`);
         }
 
         // atualiza o saldo armazenado
@@ -68,23 +78,23 @@ async function checkPontosUsuario() {
 // função que mostra a notificação
 function mostrarNotificacao(mensagem) {
     try {
-        if ($w('#boxNotificacaoMais') && $w('#textNotificacao')) {
-            $w('#textNotificacao').text = mensagem;
+        if ($w('#boxNotificacaoMais') && $w('#textNotificacaoMais')) {
+            $w('#textNotificacaoMais').text = mensagem;
             $w('#boxNotificacaoMais').show("slide", {
                 duration: 500,
-                direction: "left"
+                direction: "right"
             });
 
             setTimeout(() => {
                 // Some de novo com slide para a esquerda
                 $w('#boxNotificacaoMais').hide("slide", {
                 duration: 500,
-                direction: "left"
+                direction: "right"
                 });
             }, 3000);
-            
+
         } else {
-            console.warn("mostrarNotificacao: #boxNotificacaoMais ou #textNotificacao não encontrados no masterPage.");
+            console.warn("mostrarNotificacao: #boxNotificacaoMais ou #textNotificacaoMais não encontrados no masterPage.");
         }
     } catch (e) {
         console.error("mostrarNotificacao erro:", e);
