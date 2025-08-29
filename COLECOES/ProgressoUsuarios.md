@@ -3,11 +3,11 @@ ID: ProgressoUsuarios
 CAMPOS:
 {tipo - nome - id}
 
-text - ID do usuário - userId
+text - ID do usuÃ¡rio - userId
 number - pontosAtuais - pontosAtuais
 number - pontosTotaisAcumulados - pontosTotaisAcumulados
 number - Total de compras - totalCompras
 text - userId - userId
-text - Mês e ano - mesAno
+text - MÃªs e ano - mesAno
 datetime - Data do registro - dataRegistro
 bonusConcedido - bonusConcedido - booleano

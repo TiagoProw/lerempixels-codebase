@@ -1,5 +1,5 @@
 ID: #abaUsuarios-Recompensas | Tipo: Aba
--Usu·rios
+-Usu√°rios
 	ID: #dropdownMes | Tipo: Dropdown
 	ID: #dropdownAno | Tipo: Dropdown
 	ID: #btnFiltrarMesAno | Tipo: Button
