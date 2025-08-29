@@ -68,23 +68,23 @@ async function checkPontosUsuario() {
 // função que mostra a notificação
 function mostrarNotificacao(mensagem) {
     try {
-        if ($w('#boxNotificacao') && $w('#textNotificacao')) {
+        if ($w('#boxNotificacaoMais') && $w('#textNotificacao')) {
             $w('#textNotificacao').text = mensagem;
-            $w('#boxNotificacao').show("slide", {
+            $w('#boxNotificacaoMais').show("slide", {
                 duration: 500,
                 direction: "left"
             });
 
             setTimeout(() => {
                 // Some de novo com slide para a esquerda
-                $w('#boxNotificacao').hide("slide", {
+                $w('#boxNotificacaoMais').hide("slide", {
                 duration: 500,
                 direction: "left"
                 });
             }, 3000);
             
         } else {
-            console.warn("mostrarNotificacao: #boxNotificacao ou #textNotificacao não encontrados no masterPage.");
+            console.warn("mostrarNotificacao: #boxNotificacaoMais ou #textNotificacao não encontrados no masterPage.");
         }
     } catch (e) {
         console.error("mostrarNotificacao erro:", e);
