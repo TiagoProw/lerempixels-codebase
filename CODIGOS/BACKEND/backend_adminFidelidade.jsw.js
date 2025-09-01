@@ -5,37 +5,44 @@ import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
 
 /* ---------- LISTAR MEMBROS ---------- */
 export async function getDadosUsuariosFidelidade(mesAno) {
-    const { items: progresso } = await wixData.query('ProgressoUsuarios')
-        .limit(1000)
-        .find();
+    const [progRes, memRes] = await Promise.all([
+        wixData.query('ProgressoUsuarios').limit(1000).find(),
+        wixData.query('Members/PrivateMembersData').limit(1000).find()
+    ]);
 
-    const { items: members } = await wixData.query('Members/PrivateMembersData')
-        .limit(1000)
-        .find();
+    const progresso = progRes.items;
+    const members = memRes.items;
 
     return members.map((member) => {
         const userId = member._id;
-        let itemProgresso;
+        const historico = progresso.filter(p => p.userId === userId);
+
+        let itemProgresso = null;
 
         if (mesAno === "todos") {
-            const historico = progresso.filter(p => p.userId === userId);
             if (historico.length) {
                 itemProgresso = historico.sort(
-                    (a, b) => new Date(b.dataRegistro).getTime() - new Date(a.dataRegistro).getTime()
+                    (a, b) => new Date(b._createdDate).getTime() - new Date(a._createdDate).getTime()
                 )[0];
             }
         } else {
-            itemProgresso = progresso.find(p => p.userId === userId && p.mesAno === mesAno);
+            itemProgresso = historico.find(p => p.mesAno === mesAno);
+            if (!itemProgresso && historico.length) {
+                // Fallback: pega o mais recente do usuário
+                itemProgresso = historico.sort(
+                    (a, b) => new Date(b._createdDate).getTime() - new Date(a._createdDate).getTime()
+                )[0];
+            }
         }
 
         const nome = `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Sem nome';
-        const email = member.email || 'Sem e-mail';
-        const foto = member.picture || 'https://static.wixstatic.com/media/ba53bb_e27872e2c3b2401b872cd1ee7e38a0de~mv2.png';
+        const email = member.loginEmail || member.email || 'Sem e-mail';
+        const foto = (member.photo && member.photo.url) || member.picture || null;
 
         return {
             _id: userId,
             userId,
-            mesAno: mesAno === "todos" ? "" : (itemProgresso?.mesAno || mesAno),
+            mesAno: mesAno === "todos" ? (itemProgresso?.mesAno || "") : (itemProgresso?.mesAno || mesAno),
             nome,
             email,
             foto,
