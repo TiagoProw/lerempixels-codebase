@@ -7,10 +7,9 @@ import { currentUser } from 'wix-users-backend';
  * @param {string} userId - ID do usuário
  * @param {number} quantidade - Pontos a adicionar/remover (negativo para remover)
  * @param {string} descricao - Motivo da alteração
- * @param {boolean} afetaAcumulado - Se true, também altera pontosTotaisAcumulados
  * @returns {Promise<object>} - Novo saldo do usuário
  */
-export async function atualizarPontos(userId, quantidade, descricao, afetaAcumulado = true) {
+export async function atualizarPontos(userId, quantidade, descricao, extras = {}) {
     if (!userId) throw new Error("userId é obrigatório");
 
     // Busca registro do usuário na coleção ProgressoUsuarios
@@ -49,7 +48,8 @@ export async function atualizarPontos(userId, quantidade, descricao, afetaAcumul
         data: new Date(),
         tipo: quantidade >= 0 ? "Crédito" : "Débito",
         pontos: quantidade,
-        descricao
+        descricao,
+        ...extras
     });
 
     return {

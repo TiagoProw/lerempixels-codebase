@@ -63,22 +63,21 @@ export async function resgatarCupom(valorReais) {
 
     const cupomSelecionado = cuponsRes.items[Math.floor(Math.random() * cuponsRes.items.length)];
 
-    // Desconta pontos usando função centralizada
-    await atualizarPontos(userId, -pontosNecessarios, "resgate", `Resgate da recompensa: Cupom R$${valorReais}`);
-
-    // Registra uso do cupom
-    const uso = {
+    await atualizarPontos(
         userId,
-        pontosUsados: pontosNecessarios,
-        valorDescontado: valorReais,
-        codigoCupom: cupomSelecionado.codigo || '',
-        dataUso: new Date(),
-        pedidoId: '',
-        dataResgate: new Date()
-    };
-    await wixData.insert('UsoDePontos', uso);
+        -pontosNecessarios,
+        `Resgate de cupom R$${valorReais} - Código: ${cupomSelecionado.codigo}`,
+        true, {
+            valorDescontado: valorReais,
+            codigoCupom: cupomSelecionado.codigo,
+            dataResgate: new Date()
+        }
+    );
 
-    return { codigo: cupomSelecionado.codigo, valorReais };
+    return {
+        codigo: cupomSelecionado.codigo,
+        valorReais: valorReais
+    };
 }
 
 export async function testarLeituraImport946() {
