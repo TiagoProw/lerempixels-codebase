@@ -4,6 +4,7 @@ import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
 import { obterQuantidadesDeCuponsDisponiveis, resgatarCupom } from 'backend/recompensas';
+import { getResumoPontos } from 'backend/infoPontos';
 
 let pontosUsuario = 0;
 let totalComprasUsuario = 0;
@@ -21,32 +22,25 @@ $w.onReady(async function () {
     console.log("Usuário logado, ID:", user.id);
 
     // Atualiza os pontos e total de compras do usuário
+    // Substituir a função atualizarPontosUsuario no frontend_Minhas Recompensas.js
     async function atualizarPontosUsuario() {
-        const userId = user.id;
+        const userId = wixUsers.currentUser.id;
+
+        // Monta mês/ano atual no formato MM/YYYY
         const hoje = new Date();
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
         const ano = hoje.getFullYear();
         const mesAnoAtual = `${mes}/${ano}`;
 
-        const { items: progresso } = await wixData.query("ProgressoUsuarios")
-            .eq("userId", userId)
-            .eq("mesAno", mesAnoAtual)
-            .limit(1)
-            .find();
+        // Busca via backend, com fallback automático para o registro mais recente
+        const resumo = await getResumoPontos(userId, mesAnoAtual);
 
-        if (progresso.length > 0) {
-            pontosUsuario = progresso[0].pontosAtuais || 0;
-            totalComprasUsuario = progresso[0].totalCompras || 0;
-            pontosTotaisAcumulados = progresso[0].pontosTotaisAcumulados || 0;
-        } else {
-            pontosUsuario = 0;
-            totalComprasUsuario = 0;
-            pontosTotaisAcumulados = 0;
-        }
-
-        console.log("Pontos do usuário atualizados:", pontosUsuario, "Total compras:", totalComprasUsuario);
+        pontosUsuario = resumo.pontosAtuais || 0;
+        totalComprasUsuario = resumo.totalCompras || 0;
+        pontosTotaisAcumulados = resumo.pontosTotaisAcumulados || 0;
 
         $w('#textPontosUsuario').text = `${pontosUsuario}`;
+        console.log("Resumo pontos:", resumo);
     }
 
     // Atualiza o repeater de cupons disponíveis para resgate
@@ -218,7 +212,6 @@ $w.onReady(async function () {
 
                     // Atualiza os pontos do usuário
                     await atualizarPontosUsuario();
-                    
 
                     // Atualiza cupons disponíveis do repeater
                     const contagemAtualizada = await obterQuantidadesDeCuponsDisponiveis();
