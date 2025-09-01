@@ -1,7 +1,7 @@
 // Backend/adminFidelidade.jsw
 import wixData from 'wix-data';
+import { atualizarPontos } from 'backend/pontoService.jsw';
 import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
-import { atualizarPontos } from 'backend/pontoService';
 
 /* ---------- LISTAR MEMBROS ---------- */
 export async function getDadosUsuariosFidelidade(mesAno) {
@@ -13,15 +13,15 @@ export async function getDadosUsuariosFidelidade(mesAno) {
         .limit(1000)
         .find();
 
-    const usuarios = members.map((member) => {
+    return members.map((member) => {
         const userId = member._id;
         let itemProgresso;
 
         if (mesAno === "todos") {
             const historico = progresso.filter(p => p.userId === userId);
             if (historico.length) {
-                itemProgresso = historico.sort((a, b) =>
-                    new Date(b.dataRegistro).getTime() - new Date(a.dataRegistro).getTime()
+                itemProgresso = historico.sort(
+                    (a, b) => new Date(b.dataRegistro).getTime() - new Date(a.dataRegistro).getTime()
                 )[0];
             }
         } else {
@@ -44,26 +44,25 @@ export async function getDadosUsuariosFidelidade(mesAno) {
             pontosTotaisAcumulados: itemProgresso?.pontosTotaisAcumulados || 0
         };
     });
-
-    return usuarios;
 }
 
 /* ---------- AJUSTE MANUAL ---------- */
-export async function addPontoManual(userId, quantidade) {
-    const resultado = await atualizarPontos(userId, quantidade, "manual", "Ajuste manual de pontos");
+export async function addPontoManual(userId, mesAno, quantidade) {
+    const resultado = await atualizarPontos(userId, quantidade, `Ajuste manual (${mesAno})`, true);
     await checkAndGrantEbooksAccess(userId);
-    return resultado;
+    return { pontosGanhos: quantidade, ...resultado };
 }
 
-export async function removePontoManual(userId, quantidade) {
-    const resultado = await atualizarPontos(userId, -Math.abs(quantidade), "manual", "Remoção manual de pontos");
-    await checkAndGrantEbooksAccess(userId);
-    return resultado;
+export async function removePontoManual(userId, mesAno, quantidade) {
+    const resultado = await atualizarPontos(userId, -Math.abs(quantidade), `Remoção manual (${mesAno})`, false);
+    return { pontosGanhos: 0, ...resultado };
 }
 
 /* ---------- RECOMPENSAS ---------- */
 export async function listarRecompensas() {
-    const { items } = await wixData.query("RecompensasDisponiveis").limit(1000).find();
+    const { items } = await wixData.query("RecompensasDisponiveis")
+        .limit(1000)
+        .find();
     return items;
 }
 
