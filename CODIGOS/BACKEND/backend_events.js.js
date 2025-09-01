@@ -1,194 +1,41 @@
-// Backend/events.js
-import wixData from "wix-data";
+// backend/events.js
+import { atualizarPontos } from 'backend/pontoService';
 import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
 
+/**
+ * Evento disparado quando um pedido é pago
+ */
 export async function wixStores_onOrderPaid(event) {
-  try {
-    const userId = event.buyerInfo.id;
-    const hoje = new Date();
-    const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
-    const anoAtual = hoje.getFullYear();
-    const mesAnoAtual = `${mesAtual}/${anoAtual}`;
+    try {
+        const userId = event.buyerInfo?.id || event.buyerInfo?.memberId;
+        if (!userId) return;
 
-    // Reset automático no 1º dia
-    if (hoje.getDate() === 1) {
-      await resetBonusMensal();
+        const hoje = new Date();
+        const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+        const anoAtual = hoje.getFullYear();
+        const mesAnoAtual = `${mesAtual}/${anoAtual}`;
+
+        // Exemplo: bônus por segunda compra no mês
+        // (essa lógica pode ser adaptada para chamar atualizarPontos também)
+        const pontosCompra = Math.floor(event.totals.total); // 1 ponto por R$1
+        await atualizarPontos(userId, pontosCompra, "compra", `Compra #${event._id}`);
+
+        await checkAndGrantEbooksAccess(userId);
+    } catch (err) {
+        console.error("Erro no processamento de pontos na compra:", err);
     }
-
-    const queryResult = await wixData.query("ProgressoUsuarios")
-      .eq("userId", userId)
-      .eq("mesAno", mesAnoAtual)
-      .limit(1)
-      .find();
-
-    let registro = queryResult.items[0];
-    if (registro) {
-      registro.totalCompras = (registro.totalCompras || 0) + 1;
-      if (registro.totalCompras >= 2 && !registro.bonusConcedido) {
-        registro.pontosAtuais = (registro.pontosAtuais || 0) + 25;
-        registro.pontosTotaisAcumulados = (registro.pontosTotaisAcumulados || 0) + 25;
-        registro.bonusConcedido = true;
-        console.log(`Bônus concedido ao usuário ${userId}`);
-      }
-      await wixData.update("ProgressoUsuarios", registro);
-      console.log("✅ Tentando chamar checkAndGrantEbooksAccess para userId no events:", userId);
-      await checkAndGrantEbooksAccess(userId); // ✅ chamada da função após update
-    } else {
-      const novoRegistro = {
-        userId,
-        mesAno: mesAnoAtual,
-        totalCompras: 1,
-        pontosAtuais: 0,
-        pontosTotaisAcumulados: 0,
-        bonusConcedido: false
-      };
-      await wixData.insert("ProgressoUsuarios", novoRegistro);
-      await checkAndGrantEbooksAccess(userId); // ✅ chamada da função após insert
-    }
-    return;
-  } catch (err) {
-    console.error("Erro no processamento de bônus:", err);
-  }
 }
 
-
-
-// ---------------------------------------------------
-// A CADA R$1 = 1 PIXEL POINT
-// ---------------------------------------------------
-export async function wixStores_onOrderPaid_money(event) {
-  try {
-    const userId = event.buyerInfo?.memberId;
-
-    if (!userId) {
-      console.warn("Pedido pago sem userId (usuário não logado ou não é membro).");
-      return;
-    }
-
-    // O total do pedido já vem no evento
-    const valorPedido = event.totals?.total;
-    const pontosGanhos = Math.floor(valorPedido); // 1 ponto por R$1
-
-    // Buscar progresso do usuário
-    let [progresso] = await wixData.query("ProgressoUsuarios")
-      .eq("userId", userId)
-      .find()
-      .then(res => res.items);
-
-    if (!progresso) {
-      progresso = {
-        userId,
-        pontosAtuais: 0,
-        pontosTotaisAcumulados: 0,
-        totalCompras: 0,
-        bonusRecebido: false
-      };
-    }
-
-    // Atualizar pontos
-    progresso.pontosAtuais = (progresso.pontosAtuais || 0) + pontosGanhos;
-    progresso.pontosTotaisAcumulados = (progresso.pontosTotaisAcumulados || 0) + pontosGanhos;
-    progresso.totalCompras = (progresso.totalCompras || 0) + 1;
-
-    // Salvar no banco
-    if (progresso._id) {
-      await wixData.update("ProgressoUsuarios", progresso);
-    } else {
-      await wixData.insert("ProgressoUsuarios", progresso);
-    }
-
-    console.log(`+${pontosGanhos} pontos adicionados para o usuário ${userId}`);
-    return { pontosGanhos: pontosGanhos };
-
-  } catch (err) {
-    console.error("Erro ao dar pontos por valor de compra:", err);
-  }
-}
-
-
-
-async function resetBonusMensal() {
-  try {
-    let pagina = 0, registrosAtualizados = 0;
-
-    let continuar = true;
-    while (continuar) {
-      const { items, length } = await wixData.query("ProgressoUsuarios")
-        .limit(1000)
-        .skip(pagina * 1000)
-        .find();
-
-      if (length === 0) {
-        continuar = false;
-        break;
-      }
-
-      await Promise.all(items.map(item => {
-        item.bonusConcedido = false;
-        return wixData.update("ProgressoUsuarios", item);
-      }));
-
-      registrosAtualizados += items.length;
-      pagina++;
-    }
-
-    console.log(`Reset mensal completo — ${registrosAtualizados} registros atualizados.`);
-  } catch (err) {
-    console.error("Erro no reset mensal:", err);
-  }
-}
-
-// ---------------------------------------------------
-// REGISTRO NO SITE = 50 PIXEL POINTS
-// ---------------------------------------------------
+/**
+ * Evento disparado quando um membro é criado
+ */
 export async function wixMembers_onMemberCreated(event) {
-  try {
-    const memberId = event?.entity?._id || event?.member?._id;
-    if (!memberId) {
-      console.warn("Evento de cadastro sem memberId", event);
-      return;
+    try {
+        const memberId = event?.entity?._id || event?.member?._id;
+        if (!memberId) return;
+
+        await atualizarPontos(memberId, 50, "cadastro", "Bônus de cadastro");
+    } catch (err) {
+        console.error("Erro no bônus de cadastro:", err);
     }
-
-    const hoje = new Date();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const ano = hoje.getFullYear();
-    const mesAnoAtual = `${mes}/${ano}`;
-
-    // busca registro do mês atual
-    const { items } = await wixData.query("ProgressoUsuarios")
-      .eq("userId", memberId)
-      .eq("mesAno", mesAnoAtual)
-      .limit(1)
-      .find();
-
-    let registro = items[0];
-
-    if (registro) {
-      if (registro.bonusCadastroRecebido) {
-        console.log(`Bônus de cadastro já concedido para ${memberId}`);
-        return;
-      }
-      registro.pontosAtuais = (registro.pontosAtuais || 0) + 50;
-      registro.pontosTotaisAcumulados = (registro.pontosTotaisAcumulados || 0) + 50;
-      registro.bonusCadastroRecebido = true;
-      await wixData.update("ProgressoUsuarios", registro);
-    } else {
-      // cria novo registro do mês
-      registro = {
-        userId: memberId,
-        mesAno: mesAnoAtual,
-        pontosAtuais: 50,
-        pontosTotaisAcumulados: 50,
-        totalCompras: 0,
-        bonusCadastroRecebido: true
-      };
-      await wixData.insert("ProgressoUsuarios", registro);
-    }
-
-    console.log(`+50 Pixel Points no cadastro para ${memberId}`);
-    return { pontosGanhos: 50 };
-    
-  } catch (err) {
-    console.error("Erro no bônus de cadastro:", err);
-  }
 }

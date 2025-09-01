@@ -1,6 +1,7 @@
 // Backend/adminFidelidade.jsw
 import wixData from 'wix-data';
 import { checkAndGrantEbooksAccess } from "backend/grantEbooksAccess";
+import { atualizarPontos } from 'backend/pontoService';
 
 /* ---------- LISTAR MEMBROS ---------- */
 export async function getDadosUsuariosFidelidade(mesAno) {
@@ -8,7 +9,6 @@ export async function getDadosUsuariosFidelidade(mesAno) {
         .limit(1000)
         .find();
 
-    // Buscar todos os membros registrados no site
     const { items: members } = await wixData.query('Members/PrivateMembersData')
         .limit(1000)
         .find();
@@ -16,8 +16,8 @@ export async function getDadosUsuariosFidelidade(mesAno) {
     const usuarios = members.map((member) => {
         const userId = member._id;
         let itemProgresso;
+
         if (mesAno === "todos") {
-            // pega sempre o mais recente do usuário
             const historico = progresso.filter(p => p.userId === userId);
             if (historico.length) {
                 itemProgresso = historico.sort((a, b) =>
@@ -49,56 +49,21 @@ export async function getDadosUsuariosFidelidade(mesAno) {
 }
 
 /* ---------- AJUSTE MANUAL ---------- */
-export async function addPontoManual(userId, mesAno, quantidade) {
-    const { items } = await wixData.query('ProgressoUsuarios')
-        .eq('userId', userId)
-        .eq('mesAno', mesAno)
-        .find();
-
-    if (items.length) {
-        const item = items[0];
-        item.pontosAtuais += quantidade;
-        item.pontosTotaisAcumulados = (item.pontosTotaisAcumulados || 0) + quantidade;
-        await wixData.update("ProgressoUsuarios", item);
-        console.log("✅ Tentando chamar checkAndGrantEbooksAccess para userId:", userId);
-        await checkAndGrantEbooksAccess(userId);
-        return { pontosGanhos: quantidade };
-    } else {
-        const novo = {
-            userId,
-            mesAno,
-            pontosAtuais: quantidade,
-            pontosTotaisAcumulados: quantidade,
-            totalCompras: 0,
-            dataRegistro: new Date()
-        };
-        const inserted = await wixData.insert('ProgressoUsuarios', novo);
-        await checkAndGrantEbooksAccess(userId); // verifica se precisa liberar acesso
-        // Retornamos objeto padrão com pontosGanhos e, opcionalmente, o novo registro
-        return { pontosGanhos: quantidade, novoRegistro: inserted };
-    }
+export async function addPontoManual(userId, quantidade) {
+    const resultado = await atualizarPontos(userId, quantidade, "manual", "Ajuste manual de pontos");
+    await checkAndGrantEbooksAccess(userId);
+    return resultado;
 }
 
-export async function removePontoManual(userId, mesAno, quantidade) {
-    const { items } = await wixData.query('ProgressoUsuarios')
-        .eq('userId', userId)
-        .eq('mesAno', mesAno)
-        .find();
-
-    if (items.length) {
-        const item = items[0];
-        item.pontosAtuais = Math.max(0, item.pontosAtuais - quantidade);
-        // não mexe em pontosTotaisAcumulados
-        return wixData.update('ProgressoUsuarios', item);
-    }
-    return { pontosGanhos: 0 };
+export async function removePontoManual(userId, quantidade) {
+    const resultado = await atualizarPontos(userId, -Math.abs(quantidade), "manual", "Remoção manual de pontos");
+    await checkAndGrantEbooksAccess(userId);
+    return resultado;
 }
 
 /* ---------- RECOMPENSAS ---------- */
 export async function listarRecompensas() {
-    const { items } = await wixData.query("RecompensasDisponiveis")
-        .limit(1000)
-        .find();
+    const { items } = await wixData.query("RecompensasDisponiveis").limit(1000).find();
     return items;
 }
 
