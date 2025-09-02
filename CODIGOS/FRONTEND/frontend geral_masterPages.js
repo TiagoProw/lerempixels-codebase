@@ -2,25 +2,32 @@ import wixData from 'wix-data';
 import { currentMember } from 'wix-members';
 import { session } from 'wix-storage';
 
-let ultimoSaldoPontos = 0;
+let ultimoSaldo = 0;
 const POLLING_INTERVAL_MS = 5000;
 
 $w.onReady(async () => {
+  // 1) Esconde notificações ao carregar a página
+  $w('#boxNotificacaoMais').hide();
+  $w('#boxNotificacaoMenos').hide();
+
+  // 2) Pega membro logado
   const member = await currentMember.getMember();
   if (!member) return;
-
   const userId = member._id;
-  ultimoSaldoPontos = await fetchSaldoAtual(userId) || 0;
 
-  // Salva o saldo inicial no session
-  session.setItem("saldoPontosAtual", String(ultimoSaldoPontos));
+  // 3) Fetch inicial e grava em memória (e opcionalmente em sessionStorage)
+  ultimoSaldo = await fetchSaldoAtual(userId);
+  session.setItem("saldoPontosAtual", String(ultimoSaldo));
+  console.log("Saldo inicial:", ultimoSaldo);
 
+  // 4) Inicia polling
   setInterval(async () => {
-    const saldoAtual = await fetchSaldoAtual(userId);
-    if (saldoAtual === undefined) return;
+    const novoSaldo = await fetchSaldoAtual(userId);
+    if (novoSaldo === undefined) return;
 
-    if (saldoAtual !== ultimoSaldoPontos) {
-      const delta = saldoAtual - ultimoSaldoPontos;
+    if (novoSaldo !== ultimoSaldo) {
+      const delta = novoSaldo - ultimoSaldo;
+      console.log("Saldo mudou:", delta);
 
       if (delta > 0) {
         mostrarNotificacaoMais(`+${delta} Pixel Points!`);
@@ -28,10 +35,8 @@ $w.onReady(async () => {
         mostrarNotificacaoMenos(`-${Math.abs(delta)} Pixel Points!`);
       }
 
-      // 🔹 Atualiza o sessionStorage
-      session.setItem("saldoPontosAtual", String(saldoAtual));
-
-      ultimoSaldoPontos = saldoAtual;
+      session.setItem("saldoPontosAtual", String(novoSaldo));
+      ultimoSaldo = novoSaldo;
     }
   }, POLLING_INTERVAL_MS);
 });
@@ -40,12 +45,14 @@ async function fetchSaldoAtual(userId) {
   try {
     const result = await wixData.query("ProgressoUsuarios")
       .eq("userId", userId)
-      .descending("dataRegistro")
+      .descending("_updatedDate")   // usa campo válido
       .limit(1)
       .find();
 
+    console.log("Query ProgressoUsuarios:", result);
     if (result.items.length === 0) return 0;
-    return result.items[0].pontosAtuais || 0;
+    return Number(result.items[0].pontosAtuais) || 0;
+
   } catch (e) {
     console.error("Erro ao buscar saldo:", e);
     return 0;
@@ -53,17 +60,21 @@ async function fetchSaldoAtual(userId) {
 }
 
 function mostrarNotificacaoMais(msg) {
-  if ($w('#boxNotificacaoMais') && $w('#textNotificacaoMais')) {
-    $w('#textNotificacaoMais').text = msg;
-    $w('#boxNotificacaoMais').show("slide", { duration: 500, direction: "right" });
-    setTimeout(() => $w('#boxNotificacaoMais').hide("slide", { duration: 500, direction: "right" }), 3000);
-  }
+  $w('#textNotificacaoMais').text = msg;
+  $w('#boxNotificacaoMais')
+    .show("slide", { duration: 500, direction: "right" });
+  setTimeout(() => {
+    $w('#boxNotificacaoMais')
+      .hide("slide", { duration: 500, direction: "right" });
+  }, 3000);
 }
 
 function mostrarNotificacaoMenos(msg) {
-  if ($w('#boxNotificacaoMenos') && $w('#textNotificacaoMenos')) {
-    $w('#textNotificacaoMenos').text = msg;
-    $w('#boxNotificacaoMenos').show("slide", { duration: 500, direction: "right" });
-    setTimeout(() => $w('#boxNotificacaoMenos').hide("slide", { duration: 500, direction: "right" }), 3000);
-  }
+  $w('#textNotificacaoMenos').text = msg;
+  $w('#boxNotificacaoMenos')
+    .show("slide", { duration: 500, direction: "right" });
+  setTimeout(() => {
+    $w('#boxNotificacaoMenos')
+      .hide("slide", { duration: 500, direction: "right" });
+  }, 3000);
 }
