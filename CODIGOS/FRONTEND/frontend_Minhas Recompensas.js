@@ -3,7 +3,7 @@ import wixUsers from 'wix-users';
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
-import { obterQuantidadesDeCuponsDisponiveis, resgatarCupom } from 'backend/recompensas';
+import { resgatarCupom } from 'backend/recompensas';
 import { getResumoPontos } from 'backend/infoPontos';
 
 let pontosUsuario = 0;
@@ -45,7 +45,7 @@ $w.onReady(async function () {
 
     // Atualiza o repeater de cupons disponíveis para resgate
     async function atualizarRepeaterCupons() {
-        const contagem = await obterQuantidadesDeCuponsDisponiveis();
+        const contagem = await resgatarCupom();
 
         const opcoes = Array.from({ length: 10 }, (_, i) => {
             const valor = i + 1;
@@ -214,7 +214,7 @@ $w.onReady(async function () {
                     await atualizarPontosUsuario();
 
                     // Atualiza cupons disponíveis do repeater
-                    const contagemAtualizada = await obterQuantidadesDeCuponsDisponiveis();
+                    const contagemAtualizada = await resgatarCupom();
                     $item('#textRestamCupom').text = `${contagemAtualizada[valorReais]}/10 resgates`;
 
                     // Atualiza cupons do usuário
