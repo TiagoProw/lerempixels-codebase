@@ -1,18 +1,26 @@
-//backend- pontoService.jsw
+// backend/pontoService.jsw
 import wixData from 'wix-data';
 import { currentUser } from 'wix-users-backend';
+import {valorReais, pontosNecessarios, cupomSelecionado, } from 'backend/recompensas';
 
 /**
- * Atualiza pontos de um usuário de forma centralizada
- * @param {string} userId - ID do usuário
- * @param {number} quantidade - Pontos a adicionar/remover (negativo para remover)
- * @param {string} descricao - Motivo da alteração
- * @returns {Promise<object>} - Novo saldo do usuário
+ * Atualiza pontos do usuário e registra histórico em UsoDePontos.
+ *
+ * @param {string}  userId         ID do usuário
+ * @param {number}  quantidade     Pontos a adicionar/remover
+ * @param {object}  extras         Campos extras para o registro em UsoDePontos
+ * @returns {Promise<object>}      Novos saldos (atual e total acumulado)
  */
-export async function atualizarPontos(userId, quantidade, descricao, extras = {}) {
-    if (!userId) throw new Error("userId é obrigatório");
+export async function atualizarPontos(
+    userId,
+    quantidade,
+    extras = {}
+) {
+    if (!userId) {
+        throw new Error("userId é obrigatório");
+    }
 
-    // Busca registro do usuário na coleção ProgressoUsuarios
+    // 1. Recupera ou cria registro em ProgressoUsuarios
     let [registro] = await wixData.query("ProgressoUsuarios")
         .eq("userId", userId)
         .limit(1)
@@ -20,40 +28,37 @@ export async function atualizarPontos(userId, quantidade, descricao, extras = {}
         .then(res => res.items);
 
     if (!registro) {
-        // Se não existir, cria um novo
         registro = {
             userId,
             pontosAtuais: 0,
-            pontosTotaisAcumulados: 0
+            pontosTotaisAcumulados: 0,
+            mesAno: null
         };
     }
 
-    // Atualiza pontos atuais
+    // 2. Atualiza saldo
     registro.pontosAtuais = (registro.pontosAtuais || 0) + quantidade;
-
-    // Atualiza acumulado apenas se for ganho
     if (quantidade > 0) {
         registro.pontosTotaisAcumulados = (registro.pontosTotaisAcumulados || 0) + quantidade;
     }
+    if (registro.pontosAtuais < 0) {
+        registro.pontosAtuais = 0;
+    }
 
-    // Garante que não fique negativo
-    if (registro.pontosAtuais < 0) registro.pontosAtuais = 0;
-
-    // Salva no banco
+    // 3. Persiste ProgressoUsuarios
     await wixData.save("ProgressoUsuarios", registro);
 
-    // Registra no histórico (passo 2 já embutido)
+    // 4. Insere histórico em UsoDePontos
     await wixData.insert("UsoDePontos", {
-        userId,
-        data: new Date(),
-        tipo: quantidade >= 0 ? "Crédito" : "Débito",
-        pontos: quantidade,
-        descricao,
-        ...extras
-    });
+      userId,
+      valorDescontado: valorReais,
+      pontosUsados: pontosNecessarios,
+      codigoCupom: cupomSelecionado.codigo,
+      dataResgate: new Date()
+  });
 
     return {
-        pontosAtuais: registro.pontosAtuais,
-        pontosTotaisAcumulados: registro.pontosTotaisAcumulados
+        codigo: cupomSelecionado.codigo,
+        valorReais: valorReais
     };
 }
