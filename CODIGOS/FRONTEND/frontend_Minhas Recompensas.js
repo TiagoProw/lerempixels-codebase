@@ -3,7 +3,7 @@ import wixUsers from 'wix-users';
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
-import { resgatarCupom } from 'backend/recompensas';
+import { resgatarCupom, obterQuantidadesDeCuponsDisponiveis } from 'backend/recompensas';
 import { getResumoPontos } from 'backend/infoPontos';
 
 let pontosUsuario = 0;
@@ -204,22 +204,34 @@ $w.onReady(async function () {
             podeResgatar ? $item('#btnResgatarCupom').enable() : $item('#btnResgatarCupom').disable();
 
             $item('#btnResgatarCupom').onClick(async () => {
+
+                // Converte para número
+                const valor = Number(valorReais);
+
+                // Valida antes de chamar o backend
+                if (!Number.isInteger(valor) || valor < 1 || valor > 10) {
+                    console.error("Valor inválido no front:", valor);
+                    $item('#btnResgatarCupom').label = "Valor inválido";
+                    setTimeout(() => {
+                        $item('#btnResgatarCupom').label = "Tentar novamente";
+                        $item('#btnResgatarCupom').enable();
+                    }, 3000);
+                    return;
+                }
+
                 $item('#btnResgatarCupom').label = "Processando...";
                 $item('#btnResgatarCupom').disable();
 
                 try {
-                    const resultado = await resgatarCupom(valorReais);
-
+                    const resultado = await resgatarCupom(valor);
                     // Atualiza os pontos do usuário
                     await atualizarPontosUsuario();
-
                     // Atualiza cupons disponíveis do repeater
-                    const contagemAtualizada = await resgatarCupom();
+                    const contagemAtualizada = await obterQuantidadesDeCuponsDisponiveis();
                     $item('#textRestamCupom').text = `${contagemAtualizada[valorReais]}/10 resgates`;
-
                     // Atualiza cupons do usuário
                     await carregarCuponsUsuario();
-
+                    
                     $item('#btnResgatarCupom').label = `Resgatado!`;
                 } catch (erro) {
                     console.error("Erro ao resgatar cupom:", erro);
