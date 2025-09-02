@@ -210,7 +210,7 @@ $w.onReady(async function () {
 
                 // Valida antes de chamar o backend
                 if (!Number.isInteger(valor) || valor < 1 || valor > 10) {
-                    console.error("Valor inválido no front:", valor);
+                    console.warn("Valor inválido no front:", valor);
                     $item('#btnResgatarCupom').label = "Valor inválido";
                     setTimeout(() => {
                         $item('#btnResgatarCupom').label = "Tentar novamente";
@@ -219,10 +219,11 @@ $w.onReady(async function () {
                     return;
                 }
 
-                $item('#btnResgatarCupom').label = "Processando...";
-                $item('#btnResgatarCupom').disable();
 
                 try {
+                    $item('#btnResgatarCupom').label = "Processando...";
+                    $item('#btnResgatarCupom').disable();
+
                     const resultado = await resgatarCupom(valor);
                     // Atualiza os pontos do usuário
                     await atualizarPontosUsuario();
@@ -231,7 +232,7 @@ $w.onReady(async function () {
                     $item('#textRestamCupom').text = `${contagemAtualizada[valorReais]}/10 resgates`;
                     // Atualiza cupons do usuário
                     await carregarCuponsUsuario();
-                    
+
                     $item('#btnResgatarCupom').label = `Resgatado!`;
                 } catch (erro) {
                     console.error("Erro ao resgatar cupom:", erro);
@@ -253,7 +254,7 @@ $w.onReady(async function () {
     });
 
     // Evento para fechar aba de cupons
-    $w('#btnFecharCaixaCupom').onClick(() => {
+    $w('#btnFecharCaixaCupom').onClick((event) => {
         $w('#abaRepeaterCupom').collapse();
     });
     $w('#btnFecharCaixaCupom2').onClick((event) => {
