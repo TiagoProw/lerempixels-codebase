@@ -1,5 +1,4 @@
 // backend_recompensas.jsw.js
-// bbb
 
 import wixData from 'wix-data';
 import { registrarUsoDePontos } from 'backend/pontoService';
