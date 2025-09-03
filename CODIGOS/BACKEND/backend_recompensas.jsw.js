@@ -1,154 +1,99 @@
-// backend/recompensas.jsw
+// backend_recompensas.jsw.js
+// bbb
+
 import wixData from 'wix-data';
-import { currentMember } from 'wix-members-backend';
+import { registrarUsoDePontos } from 'backend/pontoService';
 
-const TAXA_CONVERSAO = 20;
-const LIMITE_POR_VALOR = 10;
-const MAX_QUERY_LIMIT = 1000;
+/**
+ * Retorna todos os cupons com quantidade > 0.
+ * @returns {Promise<Object[]>}
+ */
+export async function obterQuantidadesDeCuponsDisponiveis() {
+  const result = await wixData
+    .query('CuponsDisponiveis')
+    .gt('quantidade', 0)
+    .find();
 
-async function getCurrentUserId() {
-    const member = await currentMember.getMember();
-    if (!member?._id) {
-        throw new Error('Usuário não autenticado.');
-    }
-    return member._id;
+  return result.items;
 }
 
 /**
- * Garante que exista um registro de ProgressoUsuarios para o mês atual.
- * Se não houver, clona o mais recente ou cria um zerado.
+ * Valida se o usuário tem saldo suficiente para o valor em reais.
+ * @param {string} userId
+ * @param {number} valorReais
+ * @returns {Promise<number>} — pontos necessários
  */
-async function ensureProgressDoc(userId) {
-    const hoje = new Date();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const ano = hoje.getFullYear();
-    const mesAno = `${mes}/${ano}`;
+async function validarResgateCupom(userId, valorReais) {
+  const progresso = await wixData
+    .query('ProgressoUsuarios')
+    .eq('userId', userId)
+    .find();
 
-    // 1) tenta achar o registro do mês atual
-    const atualRes = await wixData.query('ProgressoUsuarios')
-        .eq('userId', userId)
-        .eq('mesAno', mesAno)
-        .limit(1)
-        .find();
+  const saldoTotal = progresso.items.reduce((soma, rec) => soma + rec.pontosAtuais, 0);
+  const pontosNecessarios = Math.ceil(valorReais);
 
-    if (atualRes.items.length > 0) {
-        return atualRes.items[0];
-    }
+  if (saldoTotal < pontosNecessarios) {
+    throw new Error('Saldo de pontos insuficiente para resgate.');
+  }
 
-    // 2) tenta clonar o documento mais recente
-    const ultimoRes = await wixData.query('ProgressoUsuarios')
-        .eq('userId', userId)
-        .descending('_createdDate')
-        .limit(1)
-        .find();
-
-    if (ultimoRes.items.length > 0) {
-        const u = ultimoRes.items[0];
-        const clone = {
-            userId,
-            mesAno,
-            pontosAtuais: Number(u.pontosAtuais) || 0,
-            pontosTotaisAcumulados: Number(u.pontosTotaisAcumulados) || 0,
-            totalCompras: Number(u.totalCompras) || 0
-        };
-        return await wixData.insert('ProgressoUsuarios', clone);
-    }
-
-    // 3) nenhum histórico: novo registro zerado
-    const inicial = {
-        userId,
-        mesAno,
-        pontosAtuais: 0,
-        pontosTotaisAcumulados: 0,
-        totalCompras: 0
-    };
-    return await wixData.insert('ProgressoUsuarios', inicial);
+  return pontosNecessarios;
 }
 
-export async function obterQuantidadesDeCuponsDisponiveis() {
-    const userId = await getCurrentUserId();
-    const usadosRes = await wixData.query('UsoDePontos')
-        .eq('userId', userId)
-        .limit(MAX_QUERY_LIMIT)
-        .find();
+/**
+ * Seleciona o cupom mais adequado com base no valor mínimo.
+ * @param {number} valorReais
+ * @returns {Promise<Object>} — cupom disponível
+ */
+async function selecionarCupomDisponivel(valorReais) {
+  const result = await wixData
+    .query('CuponsDisponiveis')
+    .le('valorMinimo', valorReais)
+    .gt('quantidade', 0)
+    .ascending('valorDesconto')
+    .find();
 
-    const contagem = {};
-    for (let i = 1; i <= 10; i++) {
-        contagem[i] = LIMITE_POR_VALOR;
-    }
+  if (!result.items.length) {
+    throw new Error('Nenhum cupom disponível para esse valor de compra.');
+  }
 
-    usadosRes.items.forEach(item => {
-        const v = Number(item.valorDescontado);
-        if (!isNaN(v) && contagem[v] !== undefined) {
-            contagem[v] = Math.max(0, contagem[v] - 1);
-        }
-    });
-
-    return contagem;
+  return result.items[0];
 }
 
-export async function resgatarCupom(valorReais) {
-    // 1) validação do parâmetro
-    if (
-        typeof valorReais !== 'number' ||
-        !Number.isInteger(valorReais) ||
-        valorReais < 1 ||
-        valorReais > 10
-    ) {
-        throw new Error('Valor inválido.');
-    }
+/**
+ * Atualiza o cupom selecionado e registra o uso de pontos.
+ * @param {string} userId
+ * @param {Object} cupom
+ * @param {number} pontosNecessarios
+ * @param {string} pedidoId
+ * @returns {Promise<Object>}
+ */
+async function registrarResgateCupom(userId, cupom, pontosNecessarios, pedidoId) {
+  // Decrementa quantidade do cupom
+  cupom.quantidade -= 1;
+  await wixData.update('CuponsDisponiveis', cupom);
 
-    const userId = await getCurrentUserId();
+  // Registra uso de pontos e desconto
+  return registrarUsoDePontos({
+    userId,
+    pontos: pontosNecessarios,
+    valorDescontado: cupom.valorDesconto,
+    codigoCupom: cupom.codigo,
+    pedidoId
+  });
+}
 
-    // 2) garante documento de progresso para o mês atual
-    const progressoDoc = await ensureProgressDoc(userId);
-    const pontosAtuais = Number(progressoDoc.pontosAtuais) || 0;
-    const pontosNecessarios = valorReais * TAXA_CONVERSAO;
-
-    if (pontosAtuais < pontosNecessarios) {
-        throw new Error('Você não tem pontos suficientes.');
-    }
-
-    // 3) verifica limite de resgates desse valor
-    const usadosCount = await wixData.query('UsoDePontos')
-        .eq('userId', userId)
-        .eq('valorDescontado', valorReais)
-        .count();
-
-    if (usadosCount >= LIMITE_POR_VALOR) {
-        throw new Error(`Você já resgatou ${LIMITE_POR_VALOR} cupons de R$${valorReais}.`);
-    }
-
-    // 4) busca um cupom disponível
-    const cuponsRes = await wixData.query('Import946')
-        .eq('valorReais', valorReais)
-        .limit(MAX_QUERY_LIMIT)
-        .find();
-
-    if (cuponsRes.items.length === 0) {
-        throw new Error('Não há cupons disponíveis para esse valor.');
-    }
-
-    const cupomSelecionado = cuponsRes.items[
-        Math.floor(Math.random() * cuponsRes.items.length)
-    ];
-
-    // 5) debita pontos e persiste no progresso
-    progressoDoc.pontosAtuais = pontosAtuais - pontosNecessarios;
-    await wixData.update('ProgressoUsuarios', progressoDoc);
-
-    // 6) registra uso de pontos na coleção UsoDePontos
-    await wixData.insert('UsoDePontos', {
-        userId,
-        pontosUsados: pontosNecessarios,
-        valorDescontado: valorReais,
-        codigoCupom: cupomSelecionado.codigo || '',
-        dataUso: new Date(),
-        pedidoId: ''
-    });
-
-    return {
-        codigo: cupomSelecionado.codigo,
-        valorReais
-    };
+/**
+ * Fluxo único para resgatar cupom:
+ * 1. Valida saldo
+ * 2. Seleciona cupom
+ * 3. Atualiza cupom e registra uso de pontos
+ * @param {string} userId
+ * @param {number} valorReais
+ * @param {string} pedidoId
+ * @returns {Promise<Object>}
+ */
+export async function resgatarCupom(userId, valorReais, pedidoId) {
+  const pontosNecessarios = await validarResgateCupom(userId, valorReais);
+  const cupom = await selecionarCupomDisponivel(valorReais);
+  return registrarResgateCupom(userId, cupom, pontosNecessarios, pedidoId);
 }
